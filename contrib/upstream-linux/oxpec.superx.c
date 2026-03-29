@@ -375,13 +375,13 @@ static ssize_t tt_toggle_store(struct device *dev,
 	case aok_zoe_a1:
 	case oxp_fly:
 	case oxp_mini_amd_pro:
+	case oxp_superx:
 	case oxp_g1_a:
 		reg = OXP_TURBO_SWITCH_REG;
 		mask = OXP_TURBO_TAKE_VAL;
 		break;
 	case oxp_2:
 	case oxp_x1:
-	case oxp_superx:
 	case oxp_g1_i:
 		reg = OXP_2_TURBO_SWITCH_REG;
 		mask = OXP_TURBO_TAKE_VAL;
@@ -422,13 +422,13 @@ static ssize_t tt_toggle_show(struct device *dev,
 	case aok_zoe_a1:
 	case oxp_fly:
 	case oxp_mini_amd_pro:
+	case oxp_superx:
 	case oxp_g1_a:
 		reg = OXP_TURBO_SWITCH_REG;
 		mask = OXP_TURBO_TAKE_VAL;
 		break;
 	case oxp_2:
 	case oxp_x1:
-	case oxp_superx:
 	case oxp_g1_i:
 		reg = OXP_2_TURBO_SWITCH_REG;
 		mask = OXP_TURBO_TAKE_VAL;
@@ -518,6 +518,7 @@ static bool oxp_psy_ext_supported(void)
 {
 	switch (board) {
 	case oxp_x1:
+	case oxp_superx:
 	case oxp_g1_i:
 	case oxp_g1_a:
 	case oxp_fly:
@@ -730,6 +731,7 @@ static int oxp_pwm_fan_speed(long *val)
 	case oxp_mini_amd:
 	case oxp_mini_amd_a07:
 	case oxp_mini_amd_pro:
+	case oxp_superx:
 	case oxp_g1_a:
 		return read_from_ec(OXP_SENSOR_FAN_REG, 2, val);
 	default:
@@ -750,7 +752,6 @@ static int oxp_pwm_input_write(long val)
 		return write_to_ec(ORANGEPI_SENSOR_PWM_REG, val);
 	case oxp_2:
 	case oxp_x1:
-	case oxp_superx:
 	case oxp_g1_i:
 		/* scale to range [0-184] */
 		val = (val * 184) / 255;
@@ -763,6 +764,7 @@ static int oxp_pwm_input_write(long val)
 	case aok_zoe_a1:
 	case oxp_fly:
 	case oxp_mini_amd_pro:
+	case oxp_superx:
 	case oxp_g1_a:
 		return write_to_ec(OXP_SENSOR_PWM_REG, val);
 	default:
@@ -784,7 +786,6 @@ static int oxp_pwm_input_read(long *val)
 		break;
 	case oxp_2:
 	case oxp_x1:
-	case oxp_superx:
 	case oxp_g1_i:
 		ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
 		if (ret)
@@ -803,6 +804,7 @@ static int oxp_pwm_input_read(long *val)
 	case aok_zoe_a1:
 	case oxp_fly:
 	case oxp_mini_amd_pro:
+	case oxp_superx:
 	case oxp_g1_a:
 	default:
 		ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);

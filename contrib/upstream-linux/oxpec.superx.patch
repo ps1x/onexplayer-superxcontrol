@@ -1,5 +1,5 @@
 --- contrib/upstream-linux/oxpec.c	2026-03-29 19:24:05.314373162 +0300
-+++ contrib/upstream-linux/oxpec.superx.c	2026-03-29 19:24:28.612958818 +0300
++++ contrib/upstream-linux/oxpec.superx.c	2026-03-30 00:47:14.640853260 +0300
 @@ -48,6 +48,7 @@
  	oxp_mini_amd_a07,
  	oxp_mini_amd_pro,
@@ -30,23 +30,31 @@
  	case oxp_g1_i:
  	case oxp_g1_a:
  		return attr->mode;
-@@ -372,6 +381,7 @@
- 		break;
- 	case oxp_2:
+@@ -366,6 +375,7 @@
+ 	case aok_zoe_a1:
+ 	case oxp_fly:
+ 	case oxp_mini_amd_pro:
++	case oxp_superx:
+ 	case oxp_g1_a:
+ 		reg = OXP_TURBO_SWITCH_REG;
+ 		mask = OXP_TURBO_TAKE_VAL;
+@@ -412,6 +422,7 @@
+ 	case aok_zoe_a1:
+ 	case oxp_fly:
+ 	case oxp_mini_amd_pro:
++	case oxp_superx:
+ 	case oxp_g1_a:
+ 		reg = OXP_TURBO_SWITCH_REG;
+ 		mask = OXP_TURBO_TAKE_VAL;
+@@ -507,6 +518,7 @@
+ {
+ 	switch (board) {
  	case oxp_x1:
 +	case oxp_superx:
  	case oxp_g1_i:
- 		reg = OXP_2_TURBO_SWITCH_REG;
- 		mask = OXP_TURBO_TAKE_VAL;
-@@ -418,6 +428,7 @@
- 		break;
- 	case oxp_2:
- 	case oxp_x1:
-+	case oxp_superx:
- 	case oxp_g1_i:
- 		reg = OXP_2_TURBO_SWITCH_REG;
- 		mask = OXP_TURBO_TAKE_VAL;
-@@ -640,6 +651,7 @@
+ 	case oxp_g1_a:
+ 	case oxp_fly:
+@@ -640,6 +652,7 @@
  	case oxp_mini_amd_a07:
  	case oxp_mini_amd_pro:
  	case oxp_x1:
@@ -54,7 +62,7 @@
  	case oxp_g1_i:
  	case oxp_g1_a:
  		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_MANUAL);
-@@ -660,6 +672,7 @@
+@@ -660,6 +673,7 @@
  	case oxp_mini_amd_a07:
  	case oxp_mini_amd_pro:
  	case oxp_x1:
@@ -62,19 +70,27 @@
  	case oxp_g1_i:
  	case oxp_g1_a:
  		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_AUTO);
-@@ -737,6 +750,7 @@
- 		return write_to_ec(ORANGEPI_SENSOR_PWM_REG, val);
- 	case oxp_2:
- 	case oxp_x1:
+@@ -717,6 +731,7 @@
+ 	case oxp_mini_amd:
+ 	case oxp_mini_amd_a07:
+ 	case oxp_mini_amd_pro:
 +	case oxp_superx:
- 	case oxp_g1_i:
- 		/* scale to range [0-184] */
- 		val = (val * 184) / 255;
-@@ -770,6 +784,7 @@
- 		break;
- 	case oxp_2:
- 	case oxp_x1:
+ 	case oxp_g1_a:
+ 		return read_from_ec(OXP_SENSOR_FAN_REG, 2, val);
+ 	default:
+@@ -749,6 +764,7 @@
+ 	case aok_zoe_a1:
+ 	case oxp_fly:
+ 	case oxp_mini_amd_pro:
 +	case oxp_superx:
- 	case oxp_g1_i:
+ 	case oxp_g1_a:
+ 		return write_to_ec(OXP_SENSOR_PWM_REG, val);
+ 	default:
+@@ -788,6 +804,7 @@
+ 	case aok_zoe_a1:
+ 	case oxp_fly:
+ 	case oxp_mini_amd_pro:
++	case oxp_superx:
+ 	case oxp_g1_a:
+ 	default:
  		ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
- 		if (ret)
