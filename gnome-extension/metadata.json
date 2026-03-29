@@ -1,0 +1,6 @@
+{
+  "uuid": "oxp-fan-profiles@ps1x",
+  "name": "OXP Control",
+  "description": "Top-bar fan and RGB control for OneXPlayer Super X",
+  "shell-version": ["45", "46", "47", "48", "49"]
+}

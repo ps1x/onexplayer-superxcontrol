@@ -1,0 +1,15 @@
+polkit.addRule(function(action, subject) {
+    if (action.id !== "org.freedesktop.policykit.exec") {
+        return polkit.Result.NOT_HANDLED;
+    }
+
+    if (action.lookup("program") !== "/usr/local/bin/oxp-fan-profile") {
+        return polkit.Result.NOT_HANDLED;
+    }
+
+    if (!subject.local || !subject.active || !subject.isInGroup("wheel")) {
+        return polkit.Result.NOT_HANDLED;
+    }
+
+    return polkit.Result.YES;
+});

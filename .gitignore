@@ -1,0 +1,25 @@
+# Kernel module build output
+*.o
+*.ko
+*.mod
+*.mod.c
+*.mod.o
+Module.symvers
+modules.order
+.*.cmd
+.tmp/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local/generated version stamp
+VERSION
+
+# Logs and dumps
+*.log
+acpidump*.txt
+
+# Local reverse-engineering and private artifacts
+/local/*
+!/local/README.md

@@ -1,0 +1,2 @@
+SUBSYSTEM=="usb", ATTR{idVendor}=="1a2c", ATTR{idProduct}=="b001", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ENV{ID_VENDOR_ID}=="1a2c", ENV{ID_MODEL_ID}=="b001", ENV{ID_USB_INTERFACE_NUM}=="00", MODE="0666", TAG+="uaccess"

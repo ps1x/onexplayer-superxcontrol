@@ -1,18 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Platform driver for OneXPlayer, AOK ZOE, and Aya Neo Handhelds that expose
- * fan reading and control via hwmon sysfs.
- *
- * Old OXP boards have the same DMI strings and they are told apart by
- * the boot cpu vendor (Intel/AMD). Currently only AMD boards are
- * supported but the code is made to be simple to add other handheld
- * boards in the future.
- * Fan control is provided via pwm interface in the range [0-255].
- * Old AMD boards use [0-100] as range in the EC, the written value is
- * scaled to accommodate for that. Newer boards like the mini PRO and
- * AOK ZOE are not scaled but have the same EC layout.
- *
- * Copyright (C) 2022 Joaquín I. Aramendía <samsagax@gmail.com>
+ * Platform driver for OneXPlayer Super X systems that expose fan reading and
+ * fan control through EC-backed hwmon sysfs nodes.
  */
 
 #include <linux/acpi.h>
@@ -21,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/processor.h>
 
@@ -39,19 +29,6 @@ static bool unlock_global_acpi_lock(void)
 	return ACPI_SUCCESS(acpi_release_global_lock(oxp_mutex));
 }
 
-enum oxp_board {
-	aok_zoe_a1 = 1,
-	aya_neo_2,
-	aya_neo_air,
-	aya_neo_air_pro,
-	aya_neo_geek,
-	oxp_mini_amd,
-	oxp_mini_amd_a07,
-	oxp_mini_amd_pro,
-};
-
-static enum oxp_board board;
-
 /* Fan reading and PWM */
 #define OXP_SENSOR_FAN_REG		0x76 /* Fan reading is 2 registers long */
 #define OXP_SENSOR_PWM_ENABLE_REG	0x4A /* PWM enable is 1 register long */
@@ -69,69 +46,41 @@ static enum oxp_board board;
 #define OXP_TURBO_TAKE_VAL		0x40
 #define OXP_TURBO_RETURN_VAL		0x00
 
+#define OXP_LED_ENABLE_VAL		0x01
+#define OXP_LED_DISABLE_VAL		0x00
+
+#define OXP_LED_MODE_STATIC		0x00
+#define OXP_LED_MODE_BREATHING		0x01
+#define OXP_LED_MODE_RAINBOW		0x02
+
+static int led_enable_reg = -1;
+static int led_mode_reg = -1;
+static int led_brightness_reg = -1;
+static int led_red_reg = -1;
+static int led_green_reg = -1;
+static int led_blue_reg = -1;
+
+module_param(led_enable_reg, int, 0644);
+MODULE_PARM_DESC(led_enable_reg, "EC register for LED enable");
+module_param(led_mode_reg, int, 0644);
+MODULE_PARM_DESC(led_mode_reg, "EC register for LED mode");
+module_param(led_brightness_reg, int, 0644);
+MODULE_PARM_DESC(led_brightness_reg, "EC register for LED brightness");
+module_param(led_red_reg, int, 0644);
+MODULE_PARM_DESC(led_red_reg, "EC register for LED red channel");
+module_param(led_green_reg, int, 0644);
+MODULE_PARM_DESC(led_green_reg, "EC register for LED green channel");
+module_param(led_blue_reg, int, 0644);
+MODULE_PARM_DESC(led_blue_reg, "EC register for LED blue channel");
+
+static bool led_regs_valid;
+
 static const struct dmi_system_id dmi_table[] = {
 	{
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "AOKZOE"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AOKZOE A1 AR07"),
-		},
-		.driver_data = (void *)aok_zoe_a1,
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "AOKZOE"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AOKZOE A1 Pro"),
-		},
-		.driver_data = (void *)aok_zoe_a1,
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AYANEO 2"),
-		},
-		.driver_data = (void *)aya_neo_2,
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AIR"),
-		},
-		.driver_data = (void *)aya_neo_air,
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AIR Pro"),
-		},
-		.driver_data = (void *)aya_neo_air_pro,
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "GEEK"),
-		},
-		.driver_data = (void *)aya_neo_geek,
-	},
-	{
-		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONE XPLAYER"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER SUPER X"),
 		},
-		.driver_data = (void *)oxp_mini_amd,
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER mini A07"),
-		},
-		.driver_data = (void *)oxp_mini_amd_a07,
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER Mini Pro"),
-		},
-		.driver_data = (void *)oxp_mini_amd_pro,
 	},
 	{},
 };
@@ -176,47 +125,25 @@ static int write_to_ec(u8 reg, u8 value)
 	return ret;
 }
 
+static bool led_map_complete(void)
+{
+	return led_enable_reg >= 0 && led_enable_reg <= 0xFF &&
+	       led_mode_reg >= 0 && led_mode_reg <= 0xFF &&
+	       led_brightness_reg >= 0 && led_brightness_reg <= 0xFF &&
+	       led_red_reg >= 0 && led_red_reg <= 0xFF &&
+	       led_green_reg >= 0 && led_green_reg <= 0xFF &&
+	       led_blue_reg >= 0 && led_blue_reg <= 0xFF;
+}
+
 /* Turbo button toggle functions */
 static int tt_toggle_enable(void)
 {
-	u8 reg;
-	u8 val;
-
-	switch (board) {
-	case oxp_mini_amd_a07:
-		reg = OXP_OLD_TURBO_SWITCH_REG;
-		val = OXP_OLD_TURBO_TAKE_VAL;
-		break;
-	case oxp_mini_amd_pro:
-	case aok_zoe_a1:
-		reg = OXP_TURBO_SWITCH_REG;
-		val = OXP_TURBO_TAKE_VAL;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return write_to_ec(reg, val);
+	return write_to_ec(OXP_TURBO_SWITCH_REG, OXP_TURBO_TAKE_VAL);
 }
 
 static int tt_toggle_disable(void)
 {
-	u8 reg;
-	u8 val;
-
-	switch (board) {
-	case oxp_mini_amd_a07:
-		reg = OXP_OLD_TURBO_SWITCH_REG;
-		val = OXP_OLD_TURBO_RETURN_VAL;
-		break;
-	case oxp_mini_amd_pro:
-	case aok_zoe_a1:
-		reg = OXP_TURBO_SWITCH_REG;
-		val = OXP_TURBO_RETURN_VAL;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return write_to_ec(reg, val);
+	return write_to_ec(OXP_TURBO_SWITCH_REG, OXP_TURBO_RETURN_VAL);
 }
 
 /* Callbacks for turbo toggle attribute */
@@ -246,22 +173,9 @@ static ssize_t tt_toggle_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	int retval;
-	u8 reg;
 	long val;
 
-	switch (board) {
-	case oxp_mini_amd_a07:
-		reg = OXP_OLD_TURBO_SWITCH_REG;
-		break;
-	case oxp_mini_amd_pro:
-	case aok_zoe_a1:
-		reg = OXP_TURBO_SWITCH_REG;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	retval = read_from_ec(reg, 1, &val);
+	retval = read_from_ec(OXP_TURBO_SWITCH_REG, 1, &val);
 	if (retval)
 		return retval;
 
@@ -269,6 +183,201 @@ static ssize_t tt_toggle_show(struct device *dev,
 }
 
 static DEVICE_ATTR_RW(tt_toggle);
+
+/* LED control functions */
+static int led_enable(void)
+{
+	if (!led_regs_valid)
+		return -EOPNOTSUPP;
+	return write_to_ec((u8)led_enable_reg, OXP_LED_ENABLE_VAL);
+}
+
+static int led_disable(void)
+{
+	if (!led_regs_valid)
+		return -EOPNOTSUPP;
+	return write_to_ec((u8)led_enable_reg, OXP_LED_DISABLE_VAL);
+}
+
+static int led_set_mode(long mode)
+{
+	if (!led_regs_valid)
+		return -EOPNOTSUPP;
+	if (mode < OXP_LED_MODE_STATIC || mode > OXP_LED_MODE_RAINBOW)
+		return -EINVAL;
+	return write_to_ec((u8)led_mode_reg, (u8)mode);
+}
+
+static int led_set_brightness(long brightness)
+{
+	if (!led_regs_valid)
+		return -EOPNOTSUPP;
+	if (brightness < 0 || brightness > 255)
+		return -EINVAL;
+	return write_to_ec((u8)led_brightness_reg, (u8)brightness);
+}
+
+static int led_set_color(u8 red, u8 green, u8 blue)
+{
+	int ret;
+	if (!led_regs_valid)
+		return -EOPNOTSUPP;
+	ret = write_to_ec((u8)led_red_reg, red);
+	if (ret)
+		return ret;
+	ret = write_to_ec((u8)led_green_reg, green);
+	if (ret)
+		return ret;
+	return write_to_ec((u8)led_blue_reg, blue);
+}
+
+/* LED sysfs callbacks */
+static ssize_t led_enable_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	int rval;
+	bool value;
+
+	rval = kstrtobool(buf, &value);
+	if (rval)
+		return rval;
+
+	if (value)
+		rval = led_enable();
+	else
+		rval = led_disable();
+
+	if (rval)
+		return rval;
+
+	return count;
+}
+
+static ssize_t led_enable_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	long val;
+	int retval;
+
+	if (!led_regs_valid)
+		return -EOPNOTSUPP;
+	retval = read_from_ec((u8)led_enable_reg, 1, &val);
+	if (retval)
+		return retval;
+
+	return sysfs_emit(buf, "%d\n", !!val);
+}
+
+static ssize_t led_mode_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
+{
+	int rval;
+	long value;
+
+	rval = kstrtol(buf, 0, &value);
+	if (rval)
+		return rval;
+
+	rval = led_set_mode(value);
+	if (rval)
+		return rval;
+
+	return count;
+}
+
+static ssize_t led_mode_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	long val;
+	int retval;
+
+	if (!led_regs_valid)
+		return -EOPNOTSUPP;
+	retval = read_from_ec((u8)led_mode_reg, 1, &val);
+	if (retval)
+		return retval;
+
+	return sysfs_emit(buf, "%ld\n", val);
+}
+
+static ssize_t led_brightness_store(struct device *dev,
+				    struct device_attribute *attr, const char *buf,
+				    size_t count)
+{
+	int rval;
+	long value;
+
+	rval = kstrtol(buf, 0, &value);
+	if (rval)
+		return rval;
+
+	rval = led_set_brightness(value);
+	if (rval)
+		return rval;
+
+	return count;
+}
+
+static ssize_t led_brightness_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	long val;
+	int retval;
+
+	if (!led_regs_valid)
+		return -EOPNOTSUPP;
+	retval = read_from_ec((u8)led_brightness_reg, 1, &val);
+	if (retval)
+		return retval;
+
+	return sysfs_emit(buf, "%ld\n", val);
+}
+
+static ssize_t led_color_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
+{
+	int rval;
+	u8 red, green, blue;
+
+	rval = sscanf(buf, "%hhu %hhu %hhu", &red, &green, &blue);
+	if (rval != 3)
+		return -EINVAL;
+
+	rval = led_set_color(red, green, blue);
+	if (rval)
+		return rval;
+
+	return count;
+}
+
+static ssize_t led_color_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	long red, green, blue;
+	int retval;
+
+	if (!led_regs_valid)
+		return -EOPNOTSUPP;
+	retval = read_from_ec((u8)led_red_reg, 1, &red);
+	if (retval)
+		return retval;
+	retval = read_from_ec((u8)led_green_reg, 1, &green);
+	if (retval)
+		return retval;
+	retval = read_from_ec((u8)led_blue_reg, 1, &blue);
+	if (retval)
+		return retval;
+
+	return sysfs_emit(buf, "%ld %ld %ld\n", red, green, blue);
+}
+
+static DEVICE_ATTR_RW(led_enable);
+static DEVICE_ATTR_RW(led_mode);
+static DEVICE_ATTR_RW(led_brightness);
+static DEVICE_ATTR_RW(led_color);
 
 /* PWM enable/disable functions */
 static int oxp_pwm_enable(void)
@@ -315,20 +424,6 @@ static int oxp_platform_read(struct device *dev, enum hwmon_sensor_types type,
 			ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
 			if (ret)
 				return ret;
-			switch (board) {
-			case aya_neo_2:
-			case aya_neo_air:
-			case aya_neo_air_pro:
-			case aya_neo_geek:
-			case oxp_mini_amd:
-			case oxp_mini_amd_a07:
-				*val = (*val * 255) / 100;
-				break;
-			case oxp_mini_amd_pro:
-			case aok_zoe_a1:
-			default:
-				break;
-			}
 			return 0;
 		case hwmon_pwm_enable:
 			return read_from_ec(OXP_SENSOR_PWM_ENABLE_REG, 1, val);
@@ -357,20 +452,6 @@ static int oxp_platform_write(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_pwm_input:
 			if (val < 0 || val > 255)
 				return -EINVAL;
-			switch (board) {
-			case aya_neo_2:
-			case aya_neo_air:
-			case aya_neo_air_pro:
-			case aya_neo_geek:
-			case oxp_mini_amd:
-			case oxp_mini_amd_a07:
-				val = (val * 100) / 255;
-				break;
-			case aok_zoe_a1:
-			case oxp_mini_amd_pro:
-			default:
-				break;
-			}
 			return write_to_ec(OXP_SENSOR_PWM_REG, val);
 		default:
 			break;
@@ -393,6 +474,10 @@ static const struct hwmon_channel_info * const oxp_platform_sensors[] = {
 
 static struct attribute *oxp_ec_attrs[] = {
 	&dev_attr_tt_toggle.attr,
+	&dev_attr_led_enable.attr,
+	&dev_attr_led_mode.attr,
+	&dev_attr_led_brightness.attr,
+	&dev_attr_led_color.attr,
 	NULL
 };
 
@@ -412,34 +497,19 @@ static const struct hwmon_chip_info oxp_ec_chip_info = {
 /* Initialization logic */
 static int oxp_platform_probe(struct platform_device *pdev)
 {
-	const struct dmi_system_id *dmi_entry;
 	struct device *dev = &pdev->dev;
 	struct device *hwdev;
 	int ret;
 
-	/*
-	 * Have to check for AMD processor here because DMI strings are the
-	 * same between Intel and AMD boards, the only way to tell them apart
-	 * is the CPU.
-	 * Intel boards seem to have different EC registers and values to
-	 * read/write.
-	 */
-	dmi_entry = dmi_first_match(dmi_table);
-	if (!dmi_entry || boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+	if (!dmi_first_match(dmi_table) || boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		return -ENODEV;
 
-	board = (enum oxp_board)(unsigned long)dmi_entry->driver_data;
+	led_regs_valid = led_map_complete();
 
-	switch (board) {
-	case aok_zoe_a1:
-	case oxp_mini_amd_a07:
-	case oxp_mini_amd_pro:
-		ret = devm_device_add_groups(dev, oxp_ec_groups);
+	if (led_regs_valid) {
+		ret = devm_device_add_group(dev, &oxp_ec_group);
 		if (ret)
 			return ret;
-		break;
-	default:
-		break;
 	}
 
 	hwdev = devm_hwmon_device_register_with_info(dev, "oxpec", NULL,
@@ -478,5 +548,5 @@ module_init(oxp_platform_init);
 module_exit(oxp_platform_exit);
 
 MODULE_AUTHOR("Joaquín Ignacio Aramendía <samsagax@gmail.com>");
-MODULE_DESCRIPTION("Platform driver that handles EC sensors of OneXPlayer devices");
+MODULE_DESCRIPTION("Platform driver that handles EC sensors of OneXPlayer Super X");
 MODULE_LICENSE("GPL");

@@ -1,68 +1,158 @@
-# Platform driver for OneXPlayer boards
+# onexplayer-superxcontrol
 
-This driver provides functinoality to control the fan in the OneXPlayer mini
-AMD variant. Intel boards are not yet supported until I can figure out EC
-registers and values.
+Linux control stack for **OneXPlayer Super X** with:
 
-Supported devices include:
+- DKMS kernel module
+- fan control service
+- GNOME Shell extension
+- RGB control
+- TDP control
+- battery charge-limit backend
 
- - AOK ZOE A1
- - OneXPlayer AMD
- - OneXPlayer mini AMD
- - OneXPlayer mini AMD PRO
+If you are searching for **OneXPlayer Super X Linux fan control**, **OneXPlayer
+Super X RGB control**, **OneXPlayer Super X TDP control**, or a **GNOME
+extension for OneXPlayer Super X**, this repository is intended for that use
+case.
 
-## Build
-If you only want to build and test the module (you need headers for your
-kernel):
+## WARNING
+
+**THIS SOFTWARE CAN CHANGE LOW-LEVEL HARDWARE BEHAVIOR. IT MAY CAUSE SYSTEM
+INSTABILITY, OVERHEATING, DATA LOSS, OR PERMANENT HARDWARE DAMAGE.**
+
+**YOU USE THIS PROJECT ENTIRELY AT YOUR OWN RISK. I ACCEPT NO RESPONSIBILITY
+OR LIABILITY FOR ANY DAMAGE, FAILURE, OR LOSS CAUSED BY ITS USE, MISUSE, OR
+MODIFICATION.**
+
+**ANYTHING ABOVE 75W TDP IS STRICTLY AT YOUR OWN RISK AND SHOULD ONLY BE USED
+WITH ADEQUATE THERMAL HEADROOM AND, IN PRACTICE, A WATER COOLER.**
+
+Public repository scope:
+
+- DKMS kernel module for the `oxp-sensors` platform driver
+- fan-control daemon and profile manager
+- GNOME Shell extension
+- client helpers for RGB, TDP, and battery controls used by the extension
+
+Local reverse-engineering artifacts, dumps, and experimental tools are kept
+under `local/` and are excluded from Git.
+
+## Features
+
+- `oxp-sensors` DKMS module for fan and EC-backed controls
+- systemd fan-control daemon with switchable profiles
+- GNOME Shell top-bar plugin for daily use
+- RGB preset and color control helpers
+- TDP presets through `ryzenadj`
+- battery status and charge-limit backend used by the plugin
+
+## Compatibility
+
+This repository is focused on **OneXPlayer Super X**.
+
+Other OneXPlayer, AOKZOE, AYANEO, mini, or older board variants are not the
+target of this public tree.
+
+## Upstream Base
+
+This project is based on the original `oxp-sensors` work:
+
+- <https://gitlab.com/Samsagax/oxp-sensors>
+
+I could not find a working way to contact Joaquín Ignacio Aramendía
+(`@Samsagax`) directly. If the upstream author wants this repository or any
+part of it to be removed from public distribution, they are welcome to open an
+issue in this repository.
+
+## Included Components
+
+- `oxp-sensors.c`: kernel driver
+- `oxp-fan-control.py`: fan-control daemon
+- `oxp-fan-profile.py`: profile CLI used by the daemon and the plugin
+- `gnome-extension/`: GNOME Shell top-bar plugin
+- `oxp-rgb`, `oxp-rgb-hid.py`: RGB control helpers
+- `oxp-tdp`: TDP helper based on `ryzenadj`
+- `oxp-battery-probe.py`, `oxp-battery-ec-probe.c`: battery status / charge-limit backend for the plugin
+
+## Build DKMS Module
+
+To build the kernel module for the running kernel:
 
 ```shell
-$ git clone https://gitlab.com/Samsagax/oxp-platform-dkms.git
-$ cd oxp-platform-dkms
-$ make
+make
 ```
 
-Then insert the module and check `sensors` and `dmesg` if appropriate:
-```shell
-# insmod oxp-sensors.ko
-$ sensors
-```
-
-## Install
-
-You'll need appropriate headers for your kernel and `dkms` package from your
-distribution.
+To install through DKMS:
 
 ```shell
-$ git clone https://gitlab.com/Samsagax/oxp-platform-dkms.git
-$ cd oxp-platform-dkms
-$ make
-# make dkms
+make dkms
 ```
 
-## Usage
+## Install On Linux
 
-Insert the module with `insmod`. Then look for a `hwmon` device with name
-`oxpec`, i.e.:
+Install the client tools, fan-control service, and GNOME extension:
 
-`$ cat /sys/class/hwmon/hwmon?/name`
+```shell
+./install.sh
+```
 
-### Reading fan RPM
+## Uninstall
 
-`sensors` will show the fan RPM as read from the EC. You can also read the
-file `fan1_input` to get the fan RPM.
+Remove the installed userland components with:
 
-### Controlling the fan
+```shell
+./uninstall.sh
+```
 
-***Warning: controlling the fan without an accurate reading of the CPU, GPU,
-and Battery temperature can cause irreversible damage to the device. Use at
-your own risk!***
+Full removal including `/etc/oxp-fan-control.conf` and user plugin state:
 
-To enable manual control of the fan (assuming `hwmon5` is our driver, look for
-`oxpec` in the `name` file):
+```shell
+./uninstall.sh --purge
+```
 
-`# echo 1 > /sys/class/hwmon/hwmon5/pwm1_enable`
+## Fan Control Profiles
 
-Then input values in the range `[0-255]` to the pwm:
+The fan daemon uses `/etc/oxp-fan-control.conf` and supports named profiles.
+Stock profiles are:
 
-`# echo 100 > /sys/class/hwmon/hwmon5/pwm1`
+- `silent`
+- `balanced`
+- `watercool`
+- `aggressive`
 
+Useful commands:
+
+```shell
+/usr/local/bin/oxp-fan-profile list
+/usr/local/bin/oxp-fan-profile current
+sudo /usr/local/bin/oxp-fan-profile set balanced
+```
+
+## GNOME Shell Extension
+
+The GNOME Shell extension adds a top-bar menu for:
+
+- fan profile switching
+- RGB presets and custom color
+- TDP presets
+- battery charge-limit / bypass controls when the backend is available
+
+Enable it after install:
+
+```shell
+gnome-extensions enable oxp-fan-profiles@ps1x
+```
+
+## RGB And TDP Commands
+
+Examples:
+
+```shell
+/usr/local/bin/oxp-rgb rainbow
+/usr/local/bin/oxp-rgb red
+sudo /usr/local/bin/oxp-tdp 15
+sudo /usr/local/bin/oxp-tdp 20
+```
+
+## License
+
+This repository is distributed under **GPL-2.0-or-later**. See `LICENSE`.

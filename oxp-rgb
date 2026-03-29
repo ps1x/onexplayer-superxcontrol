@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+"""
+Convenience wrapper around oxp-rgb-hid for confirmed RGB sequences.
+"""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+
+RGB_HID_HELPER = Path("/usr/local/bin/oxp-rgb-hid")
+LOCAL_RGB_HID_HELPER = Path(__file__).with_name("oxp-rgb-hid.py")
+
+PRESETS = {
+    "off": [
+        ["level", "off"],
+    ],
+    "dim": [
+        ["level", "1"],
+    ],
+    "mid": [
+        ["level", "2"],
+    ],
+    "bright": [
+        ["level", "3"],
+    ],
+    "rainbow": [
+        ["mode", "rainbow"],
+        ["mode", "enable"],
+    ],
+    "red": [
+        ["static", "255", "0", "0"],
+        ["mode", "alt-static"],
+    ],
+    "green": [
+        ["static", "0", "255", "0"],
+        ["mode", "alt-static"],
+    ],
+    "blue": [
+        ["static", "0", "0", "255"],
+        ["mode", "alt-static"],
+    ],
+    "warm": [
+        ["static", "244", "67", "54"],
+        ["mode", "alt-static"],
+    ],
+    "rainbow-flow": [
+        ["preset", "0x01"],
+    ],
+    "rainbow-breath-random": [
+        ["preset", "0x02"],
+    ],
+    "rainbow-cycle": [
+        ["preset", "0x03"],
+    ],
+    "slow-color-runner": [
+        ["preset", "0x04"],
+    ],
+    "slow-color-breath": [
+        ["preset", "0x05"],
+    ],
+    "slow-color-breath-2": [
+        ["preset", "0x06"],
+    ],
+    "slow-color-breath-3": [
+        ["preset", "0x07"],
+    ],
+    "flame-cycle": [
+        ["preset", "0x08"],
+    ],
+    "cyberpunk": [
+        ["preset", "0x09"],
+    ],
+    "teal-green-drops": [
+        ["preset", "0x0a"],
+    ],
+    "pink-red-drops": [
+        ["preset", "0x0b"],
+    ],
+    "whole-rainbow-cycle": [
+        ["preset", "0x0c"],
+    ],
+    "red-monster": [
+        ["preset", "0x0d"],
+    ],
+    "green-monster": [
+        ["preset", "0x0e"],
+    ],
+    "blue-monster": [
+        ["preset", "0x0f"],
+    ],
+    "green-breath": [
+        ["preset", "0x10"],
+    ],
+    "cyan-breath": [
+        ["preset", "0x11"],
+    ],
+    "pink-breath": [
+        ["preset", "0x12"],
+    ],
+    "white-breath-slow": [
+        ["preset", "0x13"],
+    ],
+    "red-solid": [
+        ["preset", "0x14"],
+    ],
+}
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Convenience RGB presets for OneXPlayer Super X")
+    parser.add_argument("preset", choices=sorted(PRESETS))
+    parser.add_argument("--dry-run", action="store_true")
+    return parser.parse_args()
+
+
+def helper_path() -> Path:
+    if LOCAL_RGB_HID_HELPER.exists():
+        return LOCAL_RGB_HID_HELPER
+    if RGB_HID_HELPER.exists():
+        return RGB_HID_HELPER
+    raise FileNotFoundError("oxp-rgb-hid helper not found")
+
+
+def main():
+    args = parse_args()
+    helper = helper_path()
+    for step in PRESETS[args.preset]:
+        cmd = [sys.executable, str(helper), *step]
+        if args.dry_run:
+            cmd.append("--dry-run")
+        subprocess.run(cmd, check=True)
+
+
+if __name__ == "__main__":
+    main()
