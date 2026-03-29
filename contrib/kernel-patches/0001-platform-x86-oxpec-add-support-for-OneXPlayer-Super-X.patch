@@ -13,34 +13,107 @@ Current mainline oxpec does not contain a matching DMI entry, so the
 in-tree driver is not auto-loaded on this system.
 
 On the tested Super X device, the EC-backed fan controls are compatible
-with the existing oxp_x1 family handling, and the battery-related EC
+with the existing X1-family handling, and the battery-related EC
 register layout also matches the X1-style charge-limit / bypass path
 starting at 0xA3/0xA4.
 
-Add a DMI match for OneXPlayer Super X and map it to oxp_x1.
+Add a dedicated board id for OneXPlayer Super X and route it through
+the same handling as oxp_x1 for now. This keeps the hardware identity
+explicit in the driver while leaving room for future Super X-specific
+quirks if needed.
 
 Signed-off-by: ps1x <ps1x@users.noreply.github.com>
 ---
- drivers/platform/x86/oxpec.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ drivers/platform/x86/oxpec.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
 
 diff --git a/drivers/platform/x86/oxpec.c b/drivers/platform/x86/oxpec.c
 index 000000000000..111111111111 100644
 --- a/drivers/platform/x86/oxpec.c
 +++ b/drivers/platform/x86/oxpec.c
-@@ -254,6 +254,12 @@ static const struct dmi_system_id dmi_table[] = {
+@@ -34,6 +34,7 @@ enum oxp_board {
+ 	oxp_mini_amd_a07,
+ 	oxp_mini_amd_pro,
+ 	oxp_x1,
++	oxp_superx,
+ 	oxp_g1_a,
+ 	oxp_g1_i,
+ 	orange_pi_neo,
+@@ -254,6 +255,12 @@ static const struct dmi_system_id dmi_table[] = {
  		},
- 		.driver_data = (void *)oxp_x1,
+		.driver_data = (void *)oxp_x1,
  	},
 +	{
 +		.matches = {
 +			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
 +			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER SUPER X"),
 +		},
-+		.driver_data = (void *)oxp_x1,
++		.driver_data = (void *)oxp_superx,
 +	},
  	{},
  };
+
+@@ -308,6 +315,7 @@ static umode_t tt_toggle_is_visible(struct kobject *kobj,
+ 	case oxp_mini_amd_a07:
+ 	case oxp_mini_amd_pro:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 	case oxp_g1_a:
+ 		return attr->mode;
+
+@@ -345,6 +353,7 @@ static ssize_t tt_toggle_store(struct device *dev,
+ 	case oxp_2:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 		reg = OXP_2_TURBO_SWITCH_REG;
+ 		mask = OXP_TURBO_TAKE_VAL;
+
+@@ -398,6 +407,7 @@ static ssize_t tt_toggle_show(struct device *dev,
+ 	case oxp_2:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 		reg = OXP_2_TURBO_SWITCH_REG;
+ 		mask = OXP_TURBO_TAKE_VAL;
+
+@@ -615,6 +625,7 @@ static int oxp_pwm_enable(void)
+ 	case oxp_mini_amd_a07:
+ 	case oxp_mini_amd_pro:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 	case oxp_g1_a:
+ 		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_MANUAL);
+
+@@ -632,6 +643,7 @@ static int oxp_pwm_disable(void)
+ 	case oxp_mini_amd_a07:
+ 	case oxp_mini_amd_pro:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 	case oxp_g1_a:
+ 		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_AUTO);
+
+@@ -711,6 +723,7 @@ static int oxp_pwm_input_write(long val)
+ 		return write_to_ec(ORANGEPI_SENSOR_PWM_REG, val);
+ 	case oxp_2:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 		/* scale to range [0-184] */
+ 		val = (val * 184) / 255;
+
+@@ -744,6 +757,7 @@ static int oxp_pwm_input_read(long *val)
+ 		*val = ((*val - 1) * 254 / 243) + 1;
+ 		break;
+ 	case oxp_2:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 		ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
+ 		if (ret)
 
 -- 
 2.49.0

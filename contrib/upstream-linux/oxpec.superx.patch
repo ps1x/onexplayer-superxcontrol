@@ -1,0 +1,80 @@
+--- contrib/upstream-linux/oxpec.c	2026-03-29 19:24:05.314373162 +0300
++++ contrib/upstream-linux/oxpec.superx.c	2026-03-29 19:24:28.612958818 +0300
+@@ -48,6 +48,7 @@
+ 	oxp_mini_amd_a07,
+ 	oxp_mini_amd_pro,
+ 	oxp_x1,
++	oxp_superx,
+ 	oxp_g1_i,
+ 	oxp_g1_a,
+ };
+@@ -282,6 +283,13 @@
+ 		},
+ 		.driver_data = (void *)oxp_x1,
+ 	},
++	{
++		.matches = {
++			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
++			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER SUPER X"),
++		},
++		.driver_data = (void *)oxp_superx,
++	},
+ 	{},
+ };
+ 
+@@ -336,6 +344,7 @@
+ 	case oxp_mini_amd_a07:
+ 	case oxp_mini_amd_pro:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 	case oxp_g1_a:
+ 		return attr->mode;
+@@ -372,6 +381,7 @@
+ 		break;
+ 	case oxp_2:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 		reg = OXP_2_TURBO_SWITCH_REG;
+ 		mask = OXP_TURBO_TAKE_VAL;
+@@ -418,6 +428,7 @@
+ 		break;
+ 	case oxp_2:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 		reg = OXP_2_TURBO_SWITCH_REG;
+ 		mask = OXP_TURBO_TAKE_VAL;
+@@ -640,6 +651,7 @@
+ 	case oxp_mini_amd_a07:
+ 	case oxp_mini_amd_pro:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 	case oxp_g1_a:
+ 		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_MANUAL);
+@@ -660,6 +672,7 @@
+ 	case oxp_mini_amd_a07:
+ 	case oxp_mini_amd_pro:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 	case oxp_g1_a:
+ 		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_AUTO);
+@@ -737,6 +750,7 @@
+ 		return write_to_ec(ORANGEPI_SENSOR_PWM_REG, val);
+ 	case oxp_2:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 		/* scale to range [0-184] */
+ 		val = (val * 184) / 255;
+@@ -770,6 +784,7 @@
+ 		break;
+ 	case oxp_2:
+ 	case oxp_x1:
++	case oxp_superx:
+ 	case oxp_g1_i:
+ 		ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
+ 		if (ret)
