@@ -58,11 +58,6 @@ This project is based on the original `oxp-sensors` work:
 
 - <https://gitlab.com/Samsagax/oxp-sensors>
 
-I could not find a working way to contact Joaquín Ignacio Aramendía
-(`@Samsagax`) directly. If the upstream author wants this repository or any
-part of it to be removed from public distribution, they are welcome to open an
-issue in this repository.
-
 ## Included Components
 
 - `oxp-sensors.c`: kernel driver
