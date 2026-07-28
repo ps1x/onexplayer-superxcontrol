@@ -9,19 +9,11 @@ OneXPlayer Super X identifies itself via DMI as:
 Current mainline oxpec does not contain a matching DMI entry for this
 system, so the in-tree driver is not auto-loaded.
 
-On the tested Super X device, the working EC layout matches the
-following handling:
+The tested Super X fan, PWM, turbo-toggle, and battery charge-control EC
+layout matches the existing ONEXPLAYER G1 A handling.
 
-- fan RPM is read from OXP_SENSOR_FAN_REG (0x76)
-- pwm1_enable uses OXP_SENSOR_PWM_ENABLE_REG (0x4A)
-- pwm1 uses OXP_SENSOR_PWM_REG (0x4B) with direct 0-255 writes
-- turbo toggle uses OXP_TURBO_SWITCH_REG (0xF1)
-- charge-limit / charge-behaviour uses the same battery extension path
-  as the X1 family
+Add a DMI match for OneXPlayer Super X and reuse the oxp_g1_a board data.
 
-Add a dedicated oxp_superx board id, a DMI match for OneXPlayer Super X,
-and route the fan, PWM, turbo-toggle, and battery-extension paths
-through the validated Super X handling.
-
-Tested-on: OneXPlayer Super X
-Signed-off-by: ps1x <ps1x@users.noreply.github.com>
+Reviewed-by: Derek J Clark <derekjohn.clark@gmail.com>
+Reviewed-by: Antheas Kapenekakis <lkml@antheas.dev>
+Signed-off-by: Alexander Egorov <begeebe@gmail.com>

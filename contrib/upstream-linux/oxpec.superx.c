@@ -48,7 +48,6 @@ enum oxp_board {
 	oxp_mini_amd_a07,
 	oxp_mini_amd_pro,
 	oxp_x1,
-	oxp_superx,
 	oxp_g1_i,
 	oxp_g1_a,
 };
@@ -209,6 +208,13 @@ static const struct dmi_system_id dmi_table[] = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER SUPER X"),
+		},
+		.driver_data = (void *)oxp_g1_a,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER G1 i"),
 		},
 		.driver_data = (void *)oxp_g1_i,
@@ -283,13 +289,6 @@ static const struct dmi_system_id dmi_table[] = {
 		},
 		.driver_data = (void *)oxp_x1,
 	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER SUPER X"),
-		},
-		.driver_data = (void *)oxp_superx,
-	},
 	{},
 };
 
@@ -344,7 +343,6 @@ static umode_t tt_toggle_is_visible(struct kobject *kobj,
 	case oxp_mini_amd_a07:
 	case oxp_mini_amd_pro:
 	case oxp_x1:
-	case oxp_superx:
 	case oxp_g1_i:
 	case oxp_g1_a:
 		return attr->mode;
@@ -375,7 +373,6 @@ static ssize_t tt_toggle_store(struct device *dev,
 	case aok_zoe_a1:
 	case oxp_fly:
 	case oxp_mini_amd_pro:
-	case oxp_superx:
 	case oxp_g1_a:
 		reg = OXP_TURBO_SWITCH_REG;
 		mask = OXP_TURBO_TAKE_VAL;
@@ -422,7 +419,6 @@ static ssize_t tt_toggle_show(struct device *dev,
 	case aok_zoe_a1:
 	case oxp_fly:
 	case oxp_mini_amd_pro:
-	case oxp_superx:
 	case oxp_g1_a:
 		reg = OXP_TURBO_SWITCH_REG;
 		mask = OXP_TURBO_TAKE_VAL;
@@ -518,7 +514,6 @@ static bool oxp_psy_ext_supported(void)
 {
 	switch (board) {
 	case oxp_x1:
-	case oxp_superx:
 	case oxp_g1_i:
 	case oxp_g1_a:
 	case oxp_fly:
@@ -652,7 +647,6 @@ static int oxp_pwm_enable(void)
 	case oxp_mini_amd_a07:
 	case oxp_mini_amd_pro:
 	case oxp_x1:
-	case oxp_superx:
 	case oxp_g1_i:
 	case oxp_g1_a:
 		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_MANUAL);
@@ -673,7 +667,6 @@ static int oxp_pwm_disable(void)
 	case oxp_mini_amd_a07:
 	case oxp_mini_amd_pro:
 	case oxp_x1:
-	case oxp_superx:
 	case oxp_g1_i:
 	case oxp_g1_a:
 		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_AUTO);
@@ -731,7 +724,6 @@ static int oxp_pwm_fan_speed(long *val)
 	case oxp_mini_amd:
 	case oxp_mini_amd_a07:
 	case oxp_mini_amd_pro:
-	case oxp_superx:
 	case oxp_g1_a:
 		return read_from_ec(OXP_SENSOR_FAN_REG, 2, val);
 	default:
@@ -764,7 +756,6 @@ static int oxp_pwm_input_write(long val)
 	case aok_zoe_a1:
 	case oxp_fly:
 	case oxp_mini_amd_pro:
-	case oxp_superx:
 	case oxp_g1_a:
 		return write_to_ec(OXP_SENSOR_PWM_REG, val);
 	default:
@@ -804,7 +795,6 @@ static int oxp_pwm_input_read(long *val)
 	case aok_zoe_a1:
 	case oxp_fly:
 	case oxp_mini_amd_pro:
-	case oxp_superx:
 	case oxp_g1_a:
 	default:
 		ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);

@@ -1,31 +1,24 @@
-Subject: [PATCH] platform/x86: oxpec: add support for OneXPlayer Super X
+Subject: [PATCH v3] platform/x86: oxpec: add support for OneXPlayer Super X
 
 Hi,
 
-this patch adds DMI-based support for OneXPlayer Super X to
+this v3 adds DMI-based support for OneXPlayer Super X to
 drivers/platform/x86/oxpec.c.
 
-Why this is needed:
+The tested Super X system exposes DMI strings as `ONE-NETBOOK` /
+`ONEXPLAYER SUPER X`, but current mainline `oxpec` does not match those
+strings, so the in-tree driver is not auto-loaded.
 
-- the tested Super X system exposes DMI strings as `ONE-NETBOOK` /
-  `ONEXPLAYER SUPER X`
-- current mainline `oxpec` does not match those strings
-- as a result, the in-tree driver is not auto-loaded on this machine
+Compared to v2, this version reuses the existing `oxp_g1_a` board data
+instead of adding a dedicated `oxp_superx` board id. Local hardware testing
+showed that the Super X fan, PWM, turbo-toggle, and battery charge-control EC
+layout matches the existing ONEXPLAYER G1 A handling.
 
-What was validated locally on hardware:
-
-- the patched driver matches and loads on OneXPlayer Super X
-- the hwmon node appears
-- fan RPM becomes readable
-- manual PWM control works
-- turbo toggle register matches the `OXP_TURBO_SWITCH_REG` path
-
-The tested Super X fan/PWM behaviour does not match the current `oxp_x1`
-fan path, so this patch adds a dedicated `oxp_superx` board id instead
-of aliasing the system directly to `oxp_x1`.
-
-Battery charge-limit / charge-behaviour on this machine uses the same
-0xA3 / 0xA4 EC path that is already used by the X1 family, so the patch
-keeps that extension enabled for Super X.
+Changes in v3:
+- reuse `oxp_g1_a` instead of adding `oxp_superx`
+- include Derek's Reviewed-by tag
+- include Antheas' Reviewed-by tag
+- Cc Ilpo
+- use consistent submitter identity
 
 Thanks.

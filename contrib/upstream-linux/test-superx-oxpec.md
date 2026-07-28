@@ -1,12 +1,12 @@
 # Local test of patched `oxpec` on Fedora
 
-This is a practical way to test the `oxp_superx` mainline patch on the current
+This is a practical way to test the Super X mainline patch on the current
 Fedora kernel without rebuilding the whole kernel.
 
 ## 1. Build the external test module
 
 ```bash
-cd /home/ps1x/oxp-platform-dkms
+cd /path/to/oxp-platform-dkms
 chmod +x contrib/upstream-linux/build-test-oxpec-superx.sh
 ./contrib/upstream-linux/build-test-oxpec-superx.sh
 ```
@@ -30,7 +30,7 @@ sudo modprobe -r oxp_sensors
 ## 3. Load the patched test module
 
 ```bash
-sudo insmod /home/ps1x/oxp-platform-dkms/contrib/upstream-linux/test-module/oxpec_superx.ko
+sudo insmod "$PWD/contrib/upstream-linux/test-module/oxpec_superx.ko"
 ```
 
 ## 4. Verify that the new module created the hwmon node

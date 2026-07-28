@@ -1,96 +1,16 @@
---- contrib/upstream-linux/oxpec.c	2026-03-29 19:24:05.314373162 +0300
-+++ contrib/upstream-linux/oxpec.superx.c	2026-03-30 00:47:14.640853260 +0300
-@@ -48,6 +48,7 @@
- 	oxp_mini_amd_a07,
- 	oxp_mini_amd_pro,
- 	oxp_x1,
-+	oxp_superx,
- 	oxp_g1_i,
- 	oxp_g1_a,
- };
-@@ -282,6 +283,13 @@
+--- a/drivers/platform/x86/oxpec.c
++++ b/drivers/platform/x86/oxpec.c
+@@ -207,6 +207,13 @@ static const struct dmi_system_id dmi_table[] = {
  		},
- 		.driver_data = (void *)oxp_x1,
+ 		.driver_data = (void *)oxp_g1_a,
  	},
 +	{
 +		.matches = {
 +			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
 +			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER SUPER X"),
 +		},
-+		.driver_data = (void *)oxp_superx,
++		.driver_data = (void *)oxp_g1_a,
 +	},
- 	{},
- };
- 
-@@ -336,6 +344,7 @@
- 	case oxp_mini_amd_a07:
- 	case oxp_mini_amd_pro:
- 	case oxp_x1:
-+	case oxp_superx:
- 	case oxp_g1_i:
- 	case oxp_g1_a:
- 		return attr->mode;
-@@ -366,6 +375,7 @@
- 	case aok_zoe_a1:
- 	case oxp_fly:
- 	case oxp_mini_amd_pro:
-+	case oxp_superx:
- 	case oxp_g1_a:
- 		reg = OXP_TURBO_SWITCH_REG;
- 		mask = OXP_TURBO_TAKE_VAL;
-@@ -412,6 +422,7 @@
- 	case aok_zoe_a1:
- 	case oxp_fly:
- 	case oxp_mini_amd_pro:
-+	case oxp_superx:
- 	case oxp_g1_a:
- 		reg = OXP_TURBO_SWITCH_REG;
- 		mask = OXP_TURBO_TAKE_VAL;
-@@ -507,6 +518,7 @@
- {
- 	switch (board) {
- 	case oxp_x1:
-+	case oxp_superx:
- 	case oxp_g1_i:
- 	case oxp_g1_a:
- 	case oxp_fly:
-@@ -640,6 +652,7 @@
- 	case oxp_mini_amd_a07:
- 	case oxp_mini_amd_pro:
- 	case oxp_x1:
-+	case oxp_superx:
- 	case oxp_g1_i:
- 	case oxp_g1_a:
- 		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_MANUAL);
-@@ -660,6 +673,7 @@
- 	case oxp_mini_amd_a07:
- 	case oxp_mini_amd_pro:
- 	case oxp_x1:
-+	case oxp_superx:
- 	case oxp_g1_i:
- 	case oxp_g1_a:
- 		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_AUTO);
-@@ -717,6 +731,7 @@
- 	case oxp_mini_amd:
- 	case oxp_mini_amd_a07:
- 	case oxp_mini_amd_pro:
-+	case oxp_superx:
- 	case oxp_g1_a:
- 		return read_from_ec(OXP_SENSOR_FAN_REG, 2, val);
- 	default:
-@@ -749,6 +764,7 @@
- 	case aok_zoe_a1:
- 	case oxp_fly:
- 	case oxp_mini_amd_pro:
-+	case oxp_superx:
- 	case oxp_g1_a:
- 		return write_to_ec(OXP_SENSOR_PWM_REG, val);
- 	default:
-@@ -788,6 +804,7 @@
- 	case aok_zoe_a1:
- 	case oxp_fly:
- 	case oxp_mini_amd_pro:
-+	case oxp_superx:
- 	case oxp_g1_a:
- 	default:
- 		ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
+ 	{
+ 		.matches = {
+ 			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
