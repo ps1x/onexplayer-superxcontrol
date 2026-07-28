@@ -1,0 +1,48 @@
+#!/bin/sh
+set -eu
+
+usage() {
+	echo "Usage: $0 status | set {power-saver|balanced|performance|adaptive|ultra}" >&2
+	exit 2
+}
+
+effective_profile() {
+	policy=/sys/devices/system/cpu/cpufreq/policy0
+	min=$(cat "$policy/scaling_min_freq")
+	max=$(cat "$policy/scaling_max_freq")
+	epp=$(cat "$policy/energy_performance_preference")
+	expected_min=$(cat "$policy/cpuinfo_min_freq")
+	ultra_max=$(cat "$policy/amd_pstate_lowest_nonlinear_freq")
+	if [ -r "$policy/amd_pstate_max_freq" ]; then
+		expected_max=$(cat "$policy/amd_pstate_max_freq")
+	else
+		expected_max=$(cat "$policy/cpuinfo_max_freq")
+	fi
+
+	if [ "$min" = "$expected_min" ] && [ "$max" = "$expected_max" ] && [ "$epp" = balance_power ]; then
+		echo adaptive
+	elif [ "$min" = "$expected_min" ] && [ "$max" = "$ultra_max" ] && [ "$epp" = power ]; then
+		echo ultra
+	else
+		powerprofilesctl get
+	fi
+}
+
+case "${1:-}" in
+	status)
+		effective_profile
+		;;
+	set)
+		case "${2:-}" in
+			power-saver|balanced|performance|adaptive|ultra)
+				/usr/local/sbin/oxp-idle-power "$2"
+				;;
+			*)
+				usage
+				;;
+		esac
+		;;
+	*)
+		usage
+		;;
+esac

@@ -13,14 +13,26 @@ sudo install -Dm755 "$REPO_DIR/oxp-fan-profile.py" /usr/local/bin/oxp-fan-profil
 sudo install -Dm755 "$REPO_DIR/oxp-rgb-hid.py" /usr/local/bin/oxp-rgb-hid
 sudo install -Dm755 "$REPO_DIR/oxp-rgb" /usr/local/bin/oxp-rgb
 sudo install -Dm755 "$REPO_DIR/oxp-tdp" /usr/local/bin/oxp-tdp
+sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-turbo-tdp.py" /usr/local/bin/oxp-turbo-tdp
+sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-cpu-profile" /usr/local/bin/oxp-cpu-profile
+sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-idle-power.sh" /usr/local/sbin/oxp-idle-power
+sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-disable-fingerprint" /usr/local/sbin/oxp-disable-fingerprint
 sudo install -Dm755 "$REPO_DIR/oxp-battery-probe.py" /usr/local/bin/oxp-battery-probe
 gcc -O2 -Wall -Wextra -o /tmp/oxp-battery-ec-probe "$REPO_DIR/oxp-battery-ec-probe.c"
 sudo install -Dm755 /tmp/oxp-battery-ec-probe /usr/local/bin/oxp-battery-ec-probe
 sudo chmod 4755 /usr/local/bin/oxp-battery-ec-probe
 sudo install -Dm644 "$REPO_DIR/oxp-fan-control.service" /etc/systemd/system/oxp-fan-control.service
+sudo install -Dm644 "$REPO_DIR/contrib/power/oxp-turbo-tdp.service" /etc/systemd/system/oxp-turbo-tdp.service
+sudo install -Dm644 "$REPO_DIR/contrib/power/oxp-idle-power.service" /etc/systemd/system/oxp-idle-power.service
+sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-idle-power-resume" /usr/lib/systemd/system-sleep/oxp-idle-power
 sudo install -Dm644 "$REPO_DIR/oxp-sensors.conf" /etc/modules-load.d/oxp-sensors.conf
 sudo install -Dm644 "$REPO_DIR/oxp-fan-profile.rules" /etc/polkit-1/rules.d/49-oxp-fan-profile.rules
 sudo install -Dm644 "$REPO_DIR/oxp-rgb-hid.rules" /etc/udev/rules.d/99-oxp-rgb-hid.rules
+sudo install -Dm644 "$REPO_DIR/contrib/power/80-oxp-disable-fingerprint.rules" /etc/udev/rules.d/80-oxp-disable-fingerprint.rules
+sudo install -Dm644 "$REPO_DIR/contrib/power/10-wifi-powersave.conf" /etc/NetworkManager/conf.d/10-wifi-powersave.conf
+sudo install -Dm644 \
+    "$REPO_DIR/contrib/sensors/61-sensor-onexplayer-super-x.hwdb" \
+    /etc/udev/hwdb.d/61-sensor-onexplayer-super-x.hwdb
 
 if ! sudo test -f /etc/oxp-fan-control.conf; then
     echo "Installing fresh profile config..."
@@ -40,10 +52,18 @@ sudo install -m644 -o "$TARGET_USER" -g "$TARGET_GROUP" \
     "$EXTENSION_DIR/extension.js"
 
 sudo systemctl daemon-reload
+sudo systemd-hwdb update
+if command -v nmcli >/dev/null 2>&1; then
+    sudo nmcli general reload conf || true
+fi
 sudo udevadm control --reload-rules
+sudo udevadm trigger --subsystem-match=iio --action=change || true
 sudo udevadm trigger --attr-match=idVendor=1a2c --attr-match=idProduct=b001 || true
 sudo modprobe oxp-sensors || true
+sudo systemctl try-restart iio-sensor-proxy.service
 sudo systemctl enable --now oxp-fan-control.service
+sudo systemctl enable --now oxp-turbo-tdp.service
+sudo systemctl enable --now oxp-idle-power.service
 
 if command -v gnome-extensions >/dev/null 2>&1; then
     sudo -u "$TARGET_USER" gnome-extensions enable "$EXTENSION_UUID" 2>/dev/null || true

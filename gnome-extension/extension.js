@@ -10,6 +10,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const PROFILE_HELPER = '/usr/local/bin/oxp-fan-profile';
+const CPU_PROFILE_HELPER = '/usr/local/bin/oxp-cpu-profile';
 const RGB_HELPER = '/usr/local/bin/oxp-rgb';
 const RGB_HID_HELPER = '/usr/local/bin/oxp-rgb-hid';
 const TDP_HELPER = '/usr/local/bin/oxp-tdp';
@@ -195,6 +196,9 @@ class OXPFanProfilesButton extends PanelMenu.Button {
 
         this._profilesMenu = new PopupMenu.PopupSubMenuMenuItem('Fan Profiles');
         this.menu.addMenuItem(this._profilesMenu);
+
+        this._cpuProfilesMenu = new PopupMenu.PopupSubMenuMenuItem('CPU Power');
+        this.menu.addMenuItem(this._cpuProfilesMenu);
 
         this._tdpMenu = new PopupMenu.PopupSubMenuMenuItem('TDP');
         this.menu.addMenuItem(this._tdpMenu);
@@ -570,6 +574,38 @@ class OXPFanProfilesButton extends PanelMenu.Button {
         });
     }
 
+    _getCpuPowerMode() {
+        const result = this._runChecked([CPU_PROFILE_HELPER, 'status']);
+        return result.ok ? result.stdout : null;
+    }
+
+    _setCpuPowerMode(mode, label) {
+        const command = ['pkexec', CPU_PROFILE_HELPER, 'set', mode];
+        this._spawn(command, `CPU power: ${label}…`);
+        this._runLater(1200, () => this._refresh());
+    }
+
+    _buildCpuProfilesMenu() {
+        const current = this._getCpuPowerMode();
+        const profiles = [
+            ['power-saver', 'Power Saver'],
+            ['balanced', 'Balanced'],
+            ['performance', 'Performance'],
+            ['adaptive', 'Adaptive'],
+            ['ultra', 'Ultra Saver'],
+        ];
+
+        this._cpuProfilesMenu.menu.removeAll();
+        for (const [mode, label] of profiles) {
+            const item = new PopupMenu.PopupMenuItem(label);
+            if (mode === current) {
+                item.setOrnament(PopupMenu.Ornament.DOT);
+            }
+            item.connect('activate', () => this._setCpuPowerMode(mode, label));
+            this._cpuProfilesMenu.menu.addMenuItem(item);
+        }
+    }
+
     _setTdp(watts) {
         const power = this._readPowerSourceInfo();
         if (power.onBattery && watts > MAX_BATTERY_TDP_WATTS) {
@@ -897,6 +933,7 @@ class OXPFanProfilesButton extends PanelMenu.Button {
         const status = this._runStatus();
         this._enforceBatteryTdpSafety();
         this._profilesMenu.menu.removeAll();
+        this._buildCpuProfilesMenu();
         this._buildTdpMenu();
         this._refreshBatteryInfo(false);
 

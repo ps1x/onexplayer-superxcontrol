@@ -7,6 +7,8 @@ Linux control stack for **OneXPlayer Super X** with:
 - GNOME Shell extension
 - RGB control
 - TDP control
+- automatic tablet-mode reporting and display rotation calibration
+- selectable CPU power policies
 - battery charge-limit backend
 
 If you are searching for **OneXPlayer Super X Linux fan control**, **OneXPlayer
@@ -43,6 +45,10 @@ under `local/` and are excluded from Git.
 - GNOME Shell top-bar plugin for daily use
 - RGB preset and color control helpers
 - TDP presets through `ryzenadj`
+- Turbo-button TDP synchronization
+- Adaptive and Ultra Saver CPU power modes
+- detachable-keyboard tablet-mode reporting
+- accelerometer mounting calibration for automatic rotation
 - battery status and charge-limit backend used by the plugin
 
 ## Compatibility
@@ -66,6 +72,8 @@ This project is based on the original `oxp-sensors` work:
 - `gnome-extension/`: GNOME Shell top-bar plugin
 - `oxp-rgb`, `oxp-rgb-hid.py`: RGB control helpers
 - `oxp-tdp`: TDP helper based on `ryzenadj`
+- `contrib/power/`: CPU policy, Turbo-button TDP, and idle-power helpers
+- `contrib/sensors/`: Super X accelerometer hardware database entry
 - `oxp-battery-probe.py`, `oxp-battery-ec-probe.c`: battery status / charge-limit backend for the plugin
 
 ## Build DKMS Module
@@ -89,6 +97,9 @@ Install the client tools, fan-control service, and GNOME extension:
 ```shell
 ./install.sh
 ```
+
+The TDP helpers require `ryzenadj` to be installed and available in `PATH`.
+The CPU power menu requires `power-profiles-daemon` and `powerprofilesctl`.
 
 ## Uninstall
 
@@ -127,6 +138,7 @@ sudo /usr/local/bin/oxp-fan-profile set balanced
 The GNOME Shell extension adds a top-bar menu for:
 
 - fan profile switching
+- CPU power modes
 - RGB presets and custom color
 - TDP presets
 - battery charge-limit / bypass controls when the backend is available

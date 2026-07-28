@@ -1,0 +1,21 @@
+#!/bin/sh
+# Disable the internal FocalTech fingerprint reader at its USB port.
+set -eu
+
+[ "$#" -eq 1 ] || exit 2
+device="/sys$1"
+[ -r "$device/idVendor" ] || exit 0
+[ "$(cat "$device/idVendor")" = 2808 ] || exit 0
+[ "$(cat "$device/idProduct")" = 5952 ] || exit 0
+
+usb_node=$(basename "$device")
+bus=${usb_node%%-*}
+port=${usb_node#*-}
+case "$port" in
+	''|*[!0-9]*) exit 1 ;;
+esac
+
+usb_root=$(dirname "$device")
+disable="$usb_root/$bus-0:1.0/usb$bus-port$port/disable"
+[ -w "$disable" ] || exit 1
+printf '%s\n' 1 > "$disable"

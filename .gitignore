@@ -8,6 +8,8 @@ Module.symvers
 modules.order
 .*.cmd
 .tmp/
+/contrib/upstream-linux/test-module/
+/contrib/upstream-linux/outgoing-*/
 
 # Python cache
 __pycache__/

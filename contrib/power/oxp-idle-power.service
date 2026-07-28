@@ -1,0 +1,11 @@
+[Unit]
+Description=OneXPlayer low-idle-power tuning with full CPU boost
+After=power-profiles-daemon.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/oxp-idle-power
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target

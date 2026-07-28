@@ -8,11 +8,22 @@
 #include <linux/dmi.h>
 #include <linux/hwmon.h>
 #include <linux/init.h>
+#include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/processor.h>
+#include <linux/usb.h>
+
+struct acpi_ec;
+typedef int (*acpi_ec_query_func)(void *data);
+
+extern struct acpi_ec *first_ec;
+extern int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
+				     acpi_handle handle,
+				     acpi_ec_query_func func, void *data);
+extern void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit);
 
 /* Handle ACPI lock mechanism */
 static u32 oxp_mutex;
@@ -46,6 +57,12 @@ static bool unlock_global_acpi_lock(void)
 #define OXP_TURBO_TAKE_VAL		0x40
 #define OXP_TURBO_RETURN_VAL		0x00
 
+#define OXP_TURBO_QUERY			0x49
+#define OXP_TDP_STAPM_REG		0x31
+#define OXP_TDP_FAST_REG		0x32
+#define OXP_TDP_SLOW_REG		0x33
+#define OXP_TURBO_QUERY_METHOD		"\\_SB.PCI0.SBRG.EC0._Q49"
+
 #define OXP_LED_ENABLE_VAL		0x01
 #define OXP_LED_DISABLE_VAL		0x00
 
@@ -74,6 +91,156 @@ module_param(led_blue_reg, int, 0644);
 MODULE_PARM_DESC(led_blue_reg, "EC register for LED blue channel");
 
 static bool led_regs_valid;
+
+#define OXP_SUPER_X_KEYBOARD_VID	0x1a86
+#define OXP_SUPER_X_KEYBOARD_PID	0x1305
+
+static struct input_dev *oxp_tablet_mode_input;
+static acpi_handle oxp_turbo_query_method;
+
+static bool oxp_is_detachable_keyboard(const struct usb_device *udev)
+{
+	return le16_to_cpu(udev->descriptor.idVendor) == OXP_SUPER_X_KEYBOARD_VID &&
+	       le16_to_cpu(udev->descriptor.idProduct) == OXP_SUPER_X_KEYBOARD_PID;
+}
+
+static void oxp_report_keyboard_attached(bool attached)
+{
+	if (!oxp_tablet_mode_input)
+		return;
+
+	/* SW_TABLET_MODE is set when the detachable keyboard is absent. */
+	input_report_switch(oxp_tablet_mode_input, SW_TABLET_MODE, !attached);
+	input_sync(oxp_tablet_mode_input);
+}
+
+static int oxp_find_detachable_keyboard(struct usb_device *udev, void *data)
+{
+	bool *attached = data;
+
+	if (oxp_is_detachable_keyboard(udev))
+		*attached = true;
+
+	return 0;
+}
+
+static int oxp_usb_notify(struct notifier_block *nb,
+			  unsigned long action, void *data)
+{
+	struct usb_device *udev = data;
+
+	if (!oxp_is_detachable_keyboard(udev))
+		return NOTIFY_DONE;
+
+	switch (action) {
+	case USB_DEVICE_ADD:
+		oxp_report_keyboard_attached(true);
+		break;
+	case USB_DEVICE_REMOVE:
+		oxp_report_keyboard_attached(false);
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block oxp_usb_notifier = {
+	.notifier_call = oxp_usb_notify,
+};
+
+static void oxp_unregister_usb_notifier(void *unused)
+{
+	usb_unregister_notify(&oxp_usb_notifier);
+	oxp_tablet_mode_input = NULL;
+}
+
+static int oxp_register_tablet_mode_switch(struct device *dev)
+{
+	struct input_dev *input;
+	bool keyboard_attached = false;
+	int ret;
+
+	input = devm_input_allocate_device(dev);
+	if (!input)
+		return -ENOMEM;
+
+	input->name = "OneXPlayer Super X Tablet Mode Switch";
+	input->phys = "oxp-platform/input0";
+	input->id.bustype = BUS_HOST;
+	input_set_capability(input, EV_SW, SW_TABLET_MODE);
+
+	ret = input_register_device(input);
+	if (ret)
+		return ret;
+
+	oxp_tablet_mode_input = input;
+	usb_register_notify(&oxp_usb_notifier);
+	ret = devm_add_action_or_reset(dev, oxp_unregister_usb_notifier, NULL);
+	if (ret)
+		return ret;
+
+	usb_for_each_dev(&keyboard_attached, oxp_find_detachable_keyboard);
+	oxp_report_keyboard_attached(keyboard_attached);
+
+	return 0;
+}
+
+static int oxp_turbo_query_handler(void *data)
+{
+	struct input_dev *input = data;
+
+	/* Preserve the firmware _Q49 power-limit notification. */
+	acpi_evaluate_object(oxp_turbo_query_method, NULL, NULL, NULL);
+
+	input_report_key(input, KEY_PROG1, 1);
+	input_sync(input);
+	input_report_key(input, KEY_PROG1, 0);
+	input_sync(input);
+
+	return 0;
+}
+
+static void oxp_unregister_turbo_query(void *unused)
+{
+	acpi_ec_remove_query_handler(first_ec, OXP_TURBO_QUERY);
+}
+
+static int oxp_register_turbo_query(struct device *dev)
+{
+	struct input_dev *input;
+	acpi_status status;
+	int ret;
+
+	if (!first_ec)
+		return -ENODEV;
+
+	status = acpi_get_handle(NULL, OXP_TURBO_QUERY_METHOD,
+				 &oxp_turbo_query_method);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	input = devm_input_allocate_device(dev);
+	if (!input)
+		return -ENOMEM;
+
+	input->name = "OneXPlayer Super X Turbo Button";
+	input->phys = "oxp-platform/input1";
+	input->id.bustype = BUS_HOST;
+	input_set_capability(input, EV_KEY, KEY_PROG1);
+
+	ret = input_register_device(input);
+	if (ret)
+		return ret;
+
+	ret = acpi_ec_add_query_handler(first_ec, OXP_TURBO_QUERY, NULL,
+					oxp_turbo_query_handler, input);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, oxp_unregister_turbo_query, NULL);
+}
 
 static const struct dmi_system_id dmi_table[] = {
 	{
@@ -183,6 +350,37 @@ static ssize_t tt_toggle_show(struct device *dev,
 }
 
 static DEVICE_ATTR_RW(tt_toggle);
+
+static ssize_t firmware_tdp_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	long stapm, fast, slow;
+	int ret;
+
+	ret = read_from_ec(OXP_TDP_STAPM_REG, 1, &stapm);
+	if (ret)
+		return ret;
+	ret = read_from_ec(OXP_TDP_FAST_REG, 1, &fast);
+	if (ret)
+		return ret;
+	ret = read_from_ec(OXP_TDP_SLOW_REG, 1, &slow);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "%ld %ld %ld\n", stapm, fast, slow);
+}
+
+static DEVICE_ATTR_RO(firmware_tdp);
+
+static struct attribute *oxp_tt_attrs[] = {
+	&dev_attr_tt_toggle.attr,
+	&dev_attr_firmware_tdp.attr,
+	NULL
+};
+
+static const struct attribute_group oxp_tt_group = {
+	.attrs = oxp_tt_attrs,
+};
 
 /* LED control functions */
 static int led_enable(void)
@@ -473,7 +671,6 @@ static const struct hwmon_channel_info * const oxp_platform_sensors[] = {
 };
 
 static struct attribute *oxp_ec_attrs[] = {
-	&dev_attr_tt_toggle.attr,
 	&dev_attr_led_enable.attr,
 	&dev_attr_led_mode.attr,
 	&dev_attr_led_brightness.attr,
@@ -481,7 +678,9 @@ static struct attribute *oxp_ec_attrs[] = {
 	NULL
 };
 
-ATTRIBUTE_GROUPS(oxp_ec);
+static const struct attribute_group oxp_ec_group = {
+	.attrs = oxp_ec_attrs,
+};
 
 static const struct hwmon_ops oxp_ec_hwmon_ops = {
 	.is_visible = oxp_ec_hwmon_is_visible,
@@ -505,6 +704,18 @@ static int oxp_platform_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	led_regs_valid = led_map_complete();
+
+	ret = oxp_register_tablet_mode_switch(dev);
+	if (ret)
+		return ret;
+
+	ret = oxp_register_turbo_query(dev);
+	if (ret)
+		return ret;
+
+	ret = devm_device_add_group(dev, &oxp_tt_group);
+	if (ret)
+		return ret;
 
 	if (led_regs_valid) {
 		ret = devm_device_add_group(dev, &oxp_ec_group);
