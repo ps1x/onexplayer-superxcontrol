@@ -1,0 +1,40 @@
+From 013bac321b12c8c4485019e55bbfa0c595b53a27 Mon Sep 17 00:00:00 2001
+From: Alexander Egorov <begeebe@gmail.com>
+Date: Mon, 27 Jul 2026 22:47:03 +0300
+Subject: [PATCH] hwdb: Add accelerometer matrix for OneXPlayer Super X
+
+The BMI260 accelerometer in the OneXPlayer Super X is exposed through
+the ACPI BMI0160 ID. Its X and Y axes do not match the built-in display
+axes, and no firmware mount matrix is provided.
+
+Add an exact vendor and product DMI match with the matrix verified on
+the hardware. The matrix keeps the native landscape position normal and
+maps both portrait rotations to the corresponding display orientation.
+
+Tested with iio-sensor-proxy 3.8 and Mutter 49.7 in all display
+orientations. The compiled hwdb entry also matches the complete modalias
+reported by the device.
+
+Development of this patch used assistance from ChatGPT 5.6 sol.
+---
+ hwdb.d/60-sensor.hwdb | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/hwdb.d/60-sensor.hwdb b/hwdb.d/60-sensor.hwdb
+index 7b57c18..8d6e521 100644
+--- a/hwdb.d/60-sensor.hwdb
++++ b/hwdb.d/60-sensor.hwdb
+@@ -876,6 +876,10 @@ sensor:modalias:acpi:BOSC0200:*:dmi:bvnAmericanMegatrendsInc.:bvr5.12:bd07/17/20
+ sensor:modalias:acpi:BMI0160:*:dmi:*:rnONEXPLAYER:rvrV01:*
+  ACCEL_MOUNT_MATRIX=-1, 0, 0; 0, 1, 0; 0, 0, -1
+ 
++# One-Netbook OneXPlayer Super X
++sensor:modalias:acpi:BMI0160:*:dmi:*:svnONE-NETBOOK:pnONEXPLAYERSUPERX:*
++ ACCEL_MOUNT_MATRIX=0, -1, 0; 1, 0, 0; 0, 0, 1
++
+ #########################################
+ # OrangePi
+ #########################################
+-- 
+2.55.0
+

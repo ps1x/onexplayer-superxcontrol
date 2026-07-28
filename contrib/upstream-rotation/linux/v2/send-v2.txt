@@ -1,0 +1,23 @@
+# Source this file, then explicitly run `send_v2`.
+# Keeping the command in a function prevents an accidental resend merely from
+# sourcing these instructions.
+send_v2() {
+  repo_dir=$(git rev-parse --show-toplevel 2>/dev/null) || return
+  cd "$repo_dir" || return
+  git send-email \
+    --to='platform-driver-x86@vger.kernel.org' \
+    --cc='hansg@kernel.org' \
+    --cc='ilpo.jarvinen@linux.intel.com' \
+    --cc='lkml@antheas.dev' \
+    --cc='derekjohn.clark@gmail.com' \
+    --cc='samsagax@gmail.com' \
+    --cc='linux-kernel@vger.kernel.org' \
+    --in-reply-to='<20260727215947.118292-1-begeebe@gmail.com>' \
+    contrib/upstream-rotation/linux/v2/v2-0000-cover-letter.patch \
+    contrib/upstream-rotation/linux/v2/v2-0001-platform-x86-oxpec-Distinguish-OneXPlayer-Super-X.patch \
+    contrib/upstream-rotation/linux/v2/v2-0002-platform-x86-oxpec-Report-tablet-mode-on-OneXPlay.patch
+}
+
+# This sends three messages in the existing v1 thread: one cover letter and
+# the two patches. At the SMTP password prompt, paste the Gmail app password
+# and press Enter.

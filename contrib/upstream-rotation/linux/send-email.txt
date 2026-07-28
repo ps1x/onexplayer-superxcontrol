@@ -1,0 +1,19 @@
+Subject: [PATCH] platform/x86: oxpec: Report tablet mode on OneXPlayer Super X
+
+The formatted patch already contains the complete problem statement, hardware
+identity, behavior, testing evidence, Signed-off-by trailer, and AI assistance
+disclosure.
+
+Suggested command from a Linux kernel checkout:
+
+git send-email \
+  --to='platform-driver-x86@vger.kernel.org' \
+  --cc='hansg@kernel.org' \
+  --cc='ilpo.jarvinen@linux.intel.com' \
+  --cc='lkml@antheas.dev' \
+  --cc='derekjohn.clark@gmail.com' \
+  --cc='samsagax@gmail.com' \
+  --cc='linux-kernel@vger.kernel.org' \
+  0001-platform-x86-oxpec-report-tablet-mode-on-super-x.patch
+
+Development of this patch used assistance from ChatGPT 5.6 sol.
