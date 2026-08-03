@@ -90,6 +90,21 @@ To install through DKMS:
 make dkms
 ```
 
+### Secure Boot
+
+DKMS signs `oxp-sensors`, but Secure Boot will reject it until the DKMS Machine
+Owner Key is enrolled. On Fedora, check the key after `make dkms` with:
+
+```shell
+sudo mokutil --test-key /var/lib/dkms/mok.pub
+```
+
+If it is not enrolled, queue it with `sudo mokutil --import
+/var/lib/dkms/mok.pub`, reboot, and choose **Enroll MOK** in the firmware screen.
+The one-time password entered at the `mokutil` prompt is required there. The OXP
+services limit their retries if the key is missing, so this condition does not
+create a boot-time restart storm.
+
 ## Install On Linux
 
 Install the client tools, fan-control service, and GNOME extension:

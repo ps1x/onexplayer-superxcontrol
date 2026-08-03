@@ -25,7 +25,10 @@ sudo install -Dm644 "$REPO_DIR/oxp-fan-control.service" /etc/systemd/system/oxp-
 sudo install -Dm644 "$REPO_DIR/contrib/power/oxp-turbo-tdp.service" /etc/systemd/system/oxp-turbo-tdp.service
 sudo install -Dm644 "$REPO_DIR/contrib/power/oxp-idle-power.service" /etc/systemd/system/oxp-idle-power.service
 sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-idle-power-resume" /usr/lib/systemd/system-sleep/oxp-idle-power
-sudo install -Dm644 "$REPO_DIR/oxp-sensors.conf" /etc/modules-load.d/oxp-sensors.conf
+# The fan and Turbo services load oxp-sensors themselves.  Keeping it in
+# modules-load makes a Secure Boot signature problem fail the global
+# systemd-modules-load service during boot.
+sudo rm -f /etc/modules-load.d/oxp-sensors.conf
 sudo install -Dm644 "$REPO_DIR/oxp-fan-profile.rules" /etc/polkit-1/rules.d/49-oxp-fan-profile.rules
 sudo install -Dm644 "$REPO_DIR/oxp-rgb-hid.rules" /etc/udev/rules.d/99-oxp-rgb-hid.rules
 sudo install -Dm644 "$REPO_DIR/contrib/power/80-oxp-disable-fingerprint.rules" /etc/udev/rules.d/80-oxp-disable-fingerprint.rules
