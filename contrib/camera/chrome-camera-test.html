@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Physical camera orientation test</title>
+<style>
+  html, body { margin: 0; background: #111; color: white; font: 18px sans-serif; }
+  video, canvas { display: block; width: 640px; height: 360px; }
+</style>
+<div id="status">Opening physical camera…</div>
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas" width="1280" height="720"></canvas>
+<script>
+  const status = document.querySelector('#status');
+  const video = document.querySelector('#video');
+  const canvas = document.querySelector('#canvas');
+  navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } })
+    .then(stream => {
+      video.srcObject = stream;
+      video.addEventListener('playing', () => setTimeout(() => {
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        status.textContent = `Captured ${video.videoWidth}x${video.videoHeight}`;
+        document.title = 'CAMERA_TEST_READY';
+      }, 2000), { once: true });
+    })
+    .catch(error => {
+      status.textContent = `${error.name}: ${error.message}`;
+      document.title = 'CAMERA_TEST_FAILED';
+    });
+</script>

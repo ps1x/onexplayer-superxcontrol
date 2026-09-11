@@ -1,0 +1,52 @@
+--- a/src/libcamera/pipeline/uvcvideo/uvcvideo.cpp
++++ b/src/libcamera/pipeline/uvcvideo/uvcvideo.cpp
+@@ -57,6 +57,7 @@ public:
+ 	std::unique_ptr<V4L2VideoDevice> video_;
+ 	Stream stream_;
+ 	std::map<PixelFormat, std::vector<SizeRange>> formats_;
++	Orientation mountingOrientation_ = Orientation::Rotate0;
+ 
+ 	std::optional<v4l2_exposure_auto_type> autoExposureMode_;
+ 	std::optional<v4l2_exposure_auto_type> manualExposureMode_;
+@@ -143,8 +144,8 @@ CameraConfiguration::Status UVCCameraConfiguration::validate()
+ 	if (config_.empty())
+ 		return Invalid;
+ 
+-	if (orientation != Orientation::Rotate0) {
+-		orientation = Orientation::Rotate0;
++	if (orientation != data_->mountingOrientation_) {
++		orientation = data_->mountingOrientation_;
+ 		status = Adjusted;
+ 	}
+ 
+@@ -594,6 +595,30 @@ int UVCCameraData::init(MediaDevice *media)
+ 
+ 	properties_.set(properties::Location, location);
+ 
++	/*
++	 * The OneXPlayer Super X firmware describes the colour camera as an
++	 * ACPI child of the USB port and sets _PLD.Rotation to 180 degrees.
++	 * Linux currently associates the UVC interface with the parent USB port,
++	 * losing the child device's rotation before it reaches libcamera.
++	 */
++	auto fileMatches = [](const std::string &path, const char *expected) {
++		std::ifstream matchFile(path);
++		std::string value;
++
++		return matchFile.is_open() && std::getline(matchFile, value) &&
++		       value == expected;
++	};
++
++	const std::string devicePath = video_->devicePath();
++	if (fileMatches("/sys/class/dmi/id/sys_vendor", "ONE-NETBOOK") &&
++	    fileMatches("/sys/class/dmi/id/product_name", "ONEXPLAYER SUPER X") &&
++	    fileMatches(devicePath + "/../idVendor", "04f2") &&
++	    fileMatches(devicePath + "/../idProduct", "b7a3"))
++		mountingOrientation_ = Orientation::Rotate180;
++
++	properties_.set(properties::Rotation,
++			mountingOrientation_ == Orientation::Rotate180 ? 180 : 0);
++
+ 	properties_.set(properties::PixelArraySize, resolution);
+ 	properties_.set(properties::PixelArrayActiveAreas, { Rectangle(resolution) });
+ 
