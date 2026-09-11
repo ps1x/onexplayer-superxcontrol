@@ -97,6 +97,7 @@ static bool led_regs_valid;
 
 static struct input_dev *oxp_tablet_mode_input;
 static acpi_handle oxp_turbo_query_method;
+static bool oxp_turbo_firmware_action = true;
 
 static bool oxp_is_detachable_keyboard(const struct usb_device *udev)
 {
@@ -191,8 +192,9 @@ static int oxp_turbo_query_handler(void *data)
 {
 	struct input_dev *input = data;
 
-	/* Preserve the firmware _Q49 power-limit notification. */
-	acpi_evaluate_object(oxp_turbo_query_method, NULL, NULL, NULL);
+	/* Optionally preserve the firmware TDP and Turbo-LED action. */
+	if (READ_ONCE(oxp_turbo_firmware_action))
+		acpi_evaluate_object(oxp_turbo_query_method, NULL, NULL, NULL);
 
 	input_report_key(input, KEY_PROG1, 1);
 	input_sync(input);
@@ -372,9 +374,34 @@ static ssize_t firmware_tdp_show(struct device *dev,
 
 static DEVICE_ATTR_RO(firmware_tdp);
 
+static ssize_t turbo_firmware_action_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	bool value;
+	int ret;
+
+	ret = kstrtobool(buf, &value);
+	if (ret)
+		return ret;
+
+	WRITE_ONCE(oxp_turbo_firmware_action, value);
+	return count;
+}
+
+static ssize_t turbo_firmware_action_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	return sysfs_emit(buf, "%d\n", READ_ONCE(oxp_turbo_firmware_action));
+}
+
+static DEVICE_ATTR_RW(turbo_firmware_action);
+
 static struct attribute *oxp_tt_attrs[] = {
 	&dev_attr_tt_toggle.attr,
 	&dev_attr_firmware_tdp.attr,
+	&dev_attr_turbo_firmware_action.attr,
 	NULL
 };
 

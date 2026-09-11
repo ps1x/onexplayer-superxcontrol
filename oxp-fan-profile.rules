@@ -3,7 +3,9 @@ polkit.addRule(function(action, subject) {
         return polkit.Result.NOT_HANDLED;
     }
 
-    if (action.lookup("program") !== "/usr/local/bin/oxp-fan-profile") {
+    var program = action.lookup("program");
+    if (program !== "/usr/local/bin/oxp-fan-profile" &&
+        program !== "/usr/local/bin/oxp-turbo-tdp") {
         return polkit.Result.NOT_HANDLED;
     }
 

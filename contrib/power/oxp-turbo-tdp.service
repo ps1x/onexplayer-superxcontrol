@@ -1,13 +1,14 @@
 [Unit]
-Description=OneXPlayer Super X Turbo button TDP preset
-After=systemd-modules-load.service
+Description=OneXPlayer Super X configurable Turbo button action
+Wants=power-profiles-daemon.service
+After=systemd-modules-load.service power-profiles-daemon.service
 StartLimitIntervalSec=60
 StartLimitBurst=3
 
 [Service]
 Type=simple
-ExecStartPre=/usr/sbin/modprobe oxp-sensors
-ExecStart=/usr/local/bin/oxp-turbo-tdp --watts 80
+ExecStartPre=/usr/local/bin/oxp-turbo-tdp --check-config
+ExecStart=/usr/local/bin/oxp-turbo-tdp
 Restart=on-failure
 RestartSec=2
 

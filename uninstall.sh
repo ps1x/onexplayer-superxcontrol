@@ -64,8 +64,10 @@ fi
 if [[ $PURGE -eq 1 ]]; then
     echo "Purging local configuration..."
     sudo rm -f /etc/oxp-fan-control.conf
+    sudo rm -f /etc/oxp-turbo-button.conf
     sudo rm -f "$TARGET_HOME/.config/oxp-control.json"
     sudo rm -f /var/lib/oxp-power-mode
+    sudo rm -f /var/lib/oxp-turbo-button-state
 fi
 
 sudo systemctl daemon-reload
@@ -77,7 +79,6 @@ sudo udevadm control --reload-rules || true
 sudo udevadm trigger --subsystem-match=iio --action=change || true
 sudo udevadm trigger --attr-match=idVendor=1a2c --attr-match=idProduct=b001 || true
 sudo systemctl try-restart iio-sensor-proxy.service
-sudo modprobe -r oxp-sensors 2>/dev/null || true
 
 if command -v gnome-extensions >/dev/null 2>&1; then
     sudo -u "$TARGET_USER" gnome-extensions disable "$EXTENSION_UUID" 2>/dev/null || true

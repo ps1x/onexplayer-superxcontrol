@@ -25,9 +25,8 @@ sudo install -Dm644 "$REPO_DIR/oxp-fan-control.service" /etc/systemd/system/oxp-
 sudo install -Dm644 "$REPO_DIR/contrib/power/oxp-turbo-tdp.service" /etc/systemd/system/oxp-turbo-tdp.service
 sudo install -Dm644 "$REPO_DIR/contrib/power/oxp-idle-power.service" /etc/systemd/system/oxp-idle-power.service
 sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-idle-power-resume" /usr/lib/systemd/system-sleep/oxp-idle-power
-# The fan and Turbo services load oxp-sensors themselves.  Keeping it in
-# modules-load makes a Secure Boot signature problem fail the global
-# systemd-modules-load service during boot.
+# The in-tree oxpec driver auto-loads from the DMI modalias; make sure no
+# stale entry tries to force-load the retired oxp-sensors module at boot.
 sudo rm -f /etc/modules-load.d/oxp-sensors.conf
 sudo install -Dm644 "$REPO_DIR/oxp-fan-profile.rules" /etc/polkit-1/rules.d/49-oxp-fan-profile.rules
 sudo install -Dm644 "$REPO_DIR/oxp-rgb-hid.rules" /etc/udev/rules.d/99-oxp-rgb-hid.rules
@@ -36,6 +35,13 @@ sudo install -Dm644 "$REPO_DIR/contrib/power/10-wifi-powersave.conf" /etc/Networ
 sudo install -Dm644 \
     "$REPO_DIR/contrib/sensors/61-sensor-onexplayer-super-x.hwdb" \
     /etc/udev/hwdb.d/61-sensor-onexplayer-super-x.hwdb
+
+if ! sudo test -f /etc/oxp-turbo-button.conf; then
+    echo "Installing default Turbo button config..."
+    sudo install -Dm644 \
+        "$REPO_DIR/contrib/power/oxp-turbo-button.conf" \
+        /etc/oxp-turbo-button.conf
+fi
 
 if ! sudo test -f /etc/oxp-fan-control.conf; then
     echo "Installing fresh profile config..."
@@ -53,6 +59,9 @@ sudo install -m644 -o "$TARGET_USER" -g "$TARGET_GROUP" \
 sudo install -m644 -o "$TARGET_USER" -g "$TARGET_GROUP" \
     "$REPO_DIR/gnome-extension/extension.js" \
     "$EXTENSION_DIR/extension.js"
+sudo install -m644 -o "$TARGET_USER" -g "$TARGET_GROUP" \
+    "$REPO_DIR/gnome-extension/prefs.js" \
+    "$EXTENSION_DIR/prefs.js"
 
 sudo systemctl daemon-reload
 sudo systemd-hwdb update
@@ -62,7 +71,6 @@ fi
 sudo udevadm control --reload-rules
 sudo udevadm trigger --subsystem-match=iio --action=change || true
 sudo udevadm trigger --attr-match=idVendor=1a2c --attr-match=idProduct=b001 || true
-sudo modprobe oxp-sensors || true
 sudo systemctl try-restart iio-sensor-proxy.service
 sudo systemctl enable --now oxp-fan-control.service
 sudo systemctl enable --now oxp-turbo-tdp.service

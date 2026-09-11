@@ -143,8 +143,10 @@ function rgbStateLabel(state) {
 
 const OXPFanProfilesButton = GObject.registerClass(
 class OXPFanProfilesButton extends PanelMenu.Button {
-    _init() {
+    _init(extension) {
         super._init(0.0, 'OXP Control');
+
+        this._extension = extension;
 
         this._icon = new St.Icon({
             icon_name: 'weather-windy-symbolic',
@@ -262,6 +264,12 @@ class OXPFanProfilesButton extends PanelMenu.Button {
         this._testFlashItem = new PopupMenu.PopupMenuItem('Test Notification Flash');
         this._testFlashItem.connect('activate', () => this._flashNotificationColor());
         this._notificationMenu.menu.addMenuItem(this._testFlashItem);
+
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this.menu.addAction('Settings…', () => {
+            this.menu.close();
+            this._extension.openPreferences();
+        });
 
         this._buildTdpMenu();
         this._buildBatteryMenus();
@@ -992,7 +1000,7 @@ class OXPFanProfilesButton extends PanelMenu.Button {
 
 export default class OXPFanProfilesExtension extends Extension {
     enable() {
-        this._button = new OXPFanProfilesButton();
+        this._button = new OXPFanProfilesButton(this);
         Main.panel.addToStatusArea('oxp-fan-profiles', this._button, 0, 'right');
     }
 

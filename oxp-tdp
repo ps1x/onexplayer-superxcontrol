@@ -6,6 +6,7 @@ Set OneXPlayer Super X TDP limits through ryzenadj.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import shutil
 import subprocess
@@ -19,6 +20,8 @@ MAX_BATTERY_WATTS = 80
 LOCAL_RYZENADJ = Path("/usr/local/bin/ryzenadj")
 AC_ONLINE_PATH = Path("/sys/class/power_supply/ACAD/online")
 BATTERY_STATUS_PATH = Path("/sys/class/power_supply/BAT0/status")
+LOCK_PATH = Path("/run/lock/oxp-tdp.lock")
+RYZENADJ_TIMEOUT_SECONDS = 10
 
 
 def parse_args():
@@ -91,12 +94,18 @@ def main():
         "power_source": source,
         "backend": ryzenadj,
         "command": cmd,
+        "timeout_seconds": RYZENADJ_TIMEOUT_SECONDS,
     }
     if args.dry_run:
         payload["status"] = "dry-run"
         emit(payload, args.json)
         return
-    subprocess.run(cmd, check=True)
+    with LOCK_PATH.open("w", encoding="utf-8") as lock_file:
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError("another TDP adjustment is already running") from exc
+        subprocess.run(cmd, check=True, timeout=RYZENADJ_TIMEOUT_SECONDS)
     payload["status"] = "applied"
     emit(payload, args.json)
 
@@ -104,6 +113,12 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (FileNotFoundError, subprocess.CalledProcessError, ValueError) as exc:
+    except (
+        FileNotFoundError,
+        RuntimeError,
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        ValueError,
+    ) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
