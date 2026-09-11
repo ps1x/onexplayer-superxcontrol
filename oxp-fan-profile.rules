@@ -3,9 +3,13 @@ polkit.addRule(function(action, subject) {
         return polkit.Result.NOT_HANDLED;
     }
 
-    var program = action.lookup("program");
-    if (program !== "/usr/local/bin/oxp-fan-profile" &&
-        program !== "/usr/local/bin/oxp-turbo-tdp") {
+    var allowedPrograms = [
+        "/usr/local/bin/oxp-fan-profile",
+        "/usr/local/bin/oxp-turbo-tdp",
+        "/usr/local/bin/oxp-tdp",
+        "/usr/local/bin/oxp-cpu-profile",
+    ];
+    if (allowedPrograms.indexOf(action.lookup("program")) === -1) {
         return polkit.Result.NOT_HANDLED;
     }
 

@@ -109,4 +109,4 @@ echo
 echo "Then restart GNOME Shell or log out/in if the menu does not appear immediately."
 echo
 echo "Local active users get direct access to the RGB HID interface through udev."
-echo "Local active wheel users can switch fan profiles from the GNOME menu without an extra password prompt."
+echo "Local active wheel users can switch fan profiles, CPU power modes, and TDP presets from the GNOME menu without an extra password prompt."

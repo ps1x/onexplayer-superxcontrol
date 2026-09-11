@@ -270,6 +270,10 @@ Enable it after install:
 gnome-extensions enable oxp-fan-profiles@ps1x
 ```
 
+Menu actions that need root (fan profiles, CPU power modes, TDP presets, and
+Turbo-button configuration) run through `pkexec`; the bundled polkit rule
+makes them passwordless for local active `wheel` users.
+
 ## RGB And TDP Commands
 
 Examples:
