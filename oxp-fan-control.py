@@ -145,12 +145,28 @@ class PIDController:
         return output
 
 
+# The in-tree oxpec driver registers its hwmon device as "oxp_ec"; the
+# retired out-of-tree oxp-sensors module used "oxpec".
+HWMON_NAMES = ("oxp_ec", "oxpec")
+
+
 def find_hwmon():
     for hwmon_dir in Path("/sys/class/hwmon").glob("hwmon*"):
         name_file = hwmon_dir / "name"
-        if name_file.exists() and name_file.read_text().strip() == "oxpec":
+        if name_file.exists() and name_file.read_text().strip() in HWMON_NAMES:
             return hwmon_dir
     return None
+
+
+def automatic_fan_enable_value():
+    """pwm1_enable value that returns the fan to EC automatic control."""
+    try:
+        name = (HWMON_PATH / "name").read_text().strip()
+    except IOError:
+        name = ""
+    # In-tree oxpec: 2 = EC automatic control, 0 = manual full speed.
+    # Legacy oxp-sensors module: 0 = EC automatic control.
+    return "0" if name == "oxpec" else "2"
 
 
 def read_temp():
@@ -297,7 +313,7 @@ def main():
 
     HWMON_PATH = find_hwmon()
     if not HWMON_PATH:
-        logger.error("Could not find oxp-sensors hwmon device.")
+        logger.error("Could not find oxp_ec/oxpec fan hwmon device.")
         sys.exit(1)
 
     logger.info("Found OXP hwmon at: %s", HWMON_PATH)
@@ -420,7 +436,7 @@ def main():
 
     logger.info("Restoring automatic fan control...")
     try:
-        (HWMON_PATH / "pwm1_enable").write_text("0")
+        (HWMON_PATH / "pwm1_enable").write_text(automatic_fan_enable_value())
     except IOError:
         pass
     logger.info("Fan control stopped.")

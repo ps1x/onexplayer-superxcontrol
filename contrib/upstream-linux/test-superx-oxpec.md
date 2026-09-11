@@ -40,7 +40,7 @@ lsmod | grep oxpec_superx
 grep . /sys/class/hwmon/hwmon*/name
 ```
 
-You want to see an `oxpec` hwmon device appear again.
+You want to see an `oxp_ec` hwmon device appear again.
 
 ## 5. Verify fan RPM
 
@@ -51,22 +51,25 @@ sensors
 
 ## 6. Verify manual fan control
 
-Find the `hwmon` path with `name=oxpec`, then:
+Find the `hwmon` path with `name=oxp_ec`, then:
 
 ```bash
-OXP_HWMON="$(for d in /sys/class/hwmon/hwmon*; do [[ \"$(cat \"$d/name\" 2>/dev/null)\" == \"oxpec\" ]] && echo \"$d\" && break; done)"
+OXP_HWMON="$(for d in /sys/class/hwmon/hwmon*; do [[ \"$(cat \"$d/name\" 2>/dev/null)\" == \"oxp_ec\" ]] && echo \"$d\" && break; done)"
 echo "$OXP_HWMON"
 
 echo 1 | sudo tee "$OXP_HWMON/pwm1_enable"
 echo 120 | sudo tee "$OXP_HWMON/pwm1"
 cat "$OXP_HWMON/fan1_input"
-echo 0 | sudo tee "$OXP_HWMON/pwm1_enable"
+echo 2 | sudo tee "$OXP_HWMON/pwm1_enable"
 ```
+
+`pwm1_enable` uses the in-tree semantics: `0` is manual full speed, `1` is
+manual PWM, and `2` returns the fan to EC automatic control.
 
 ## 7. Verify turbo toggle, if exposed
 
 ```bash
-test -e "$OXP_HWMON/tt_toggle" && cat "$OXP_HWMON/tt_toggle"
+cat /sys/devices/platform/oxp-platform/tt_toggle
 ```
 
 ## 8. Cleanup

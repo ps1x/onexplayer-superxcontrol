@@ -1,14 +1,14 @@
 [Unit]
 Description=OXP SuperX Fan Control Daemon
 After=systemd-modules-load.service
-Wants=systemd-modules-load.service
 StartLimitIntervalSec=60
 StartLimitBurst=3
 
 [Service]
 Type=simple
-ExecStartPre=/usr/sbin/modprobe oxp-sensors
-ExecStartPre=/bin/sh -c 'for i in $(seq 1 20); do for d in /sys/class/hwmon/hwmon*; do [ -r "$d/name" ] || continue; [ "$(cat "$d/name")" = "oxpec" ] && exit 0; done; sleep 0.5; done; echo "oxpec hwmon device not found after loading oxp-sensors" >&2; exit 1'
+# The in-tree oxpec driver auto-loads from the DMI modalias and registers the
+# fan hwmon device as "oxp_ec" ("oxpec" on the retired oxp-sensors module).
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 20); do for d in /sys/class/hwmon/hwmon*; do [ -r "$d/name" ] || continue; n="$(cat "$d/name")"; [ "$n" = "oxp_ec" ] || [ "$n" = "oxpec" ] && exit 0; done; sleep 0.5; done; echo "oxp_ec/oxpec fan hwmon device not found (is the in-tree oxpec driver loaded?)" >&2; exit 1'
 ExecStart=/usr/local/bin/oxp-fan-control.py
 Restart=on-failure
 RestartSec=5
