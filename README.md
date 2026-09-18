@@ -7,6 +7,7 @@ Linux control stack for **OneXPlayer Super X** with:
 - GNOME Shell extension
 - RGB control
 - TDP control
+- [GPU memory (UMA) allocation](contrib/uma/README.md) through amdgpu, applied after reboot
 - display rotation calibration for sensors and camera
 - selectable CPU power policies
 - battery charge-limit and bypass backend
@@ -34,7 +35,7 @@ Public repository scope:
 - legacy `oxp-sensors` DKMS module for older kernels
 - fan-control daemon and profile manager
 - GNOME Shell extension
-- client helpers for RGB, TDP, and battery controls used by the extension
+- client helpers for RGB, TDP, GPU memory, and battery controls used by the extension
 
 Local reverse-engineering artifacts, dumps, and experimental tools are kept
 under `local/` and are excluded from Git.
@@ -46,6 +47,7 @@ under `local/` and are excluded from Git.
 - GNOME Shell top-bar plugin for daily use
 - RGB preset and color control helpers
 - TDP presets through `ryzenadj`
+- GPU memory (UMA) allocation with firmware-provided sizes and reboot confirmation
 - configurable Turbo-button commands or two-state power/TDP/LED switching
 - Adaptive and Ultra Saver CPU power modes
 - detachable-keyboard tablet-mode reporting (legacy module only; the
@@ -74,6 +76,7 @@ This project is based on the original `oxp-sensors` work:
 - `gnome-extension/`: GNOME Shell top-bar plugin
 - `oxp-rgb`, `oxp-rgb-hid.py`: RGB control helpers
 - `oxp-tdp`: TDP helper based on `ryzenadj`
+- `oxp-vram.py`: GPU memory allocation helper using the amdgpu UMA interface
 - `contrib/power/`: CPU policy, configurable Turbo-button, and idle-power helpers
 - `contrib/sensors/`: Super X accelerometer hardware database entry
 - `contrib/camera/`: Super X camera mounting quirk for libcamera
@@ -129,6 +132,46 @@ so the `ryzen_smu` DKMS module must also be built, signed, and loaded
 (`ryzen_smu` 0.1.7 currently needs `#include <asm/cpuid/api.h>` added to
 `smu.c` to build on recent kernels).
 The CPU power menu requires `power-profiles-daemon` and `powerprofilesctl`.
+
+## GPU Memory (UMA)
+
+Change the memory reserved for the integrated GPU from **OXP Control → GPU
+Memory (UMA)**. This provides the allocation control available in OneXConsole
+on Windows through the native Linux amdgpu interface.
+
+1. Install or update with `./install.sh`, then log out and back into GNOME.
+2. Open **GPU Memory (UMA)** and select a size.
+3. Confirm with **Apply**, then reboot when convenient.
+4. Check **Active VRAM** in the menu after reboot.
+
+The tested Super X exposes **512 MiB, 1, 2, 4, 8, 16 and 32 GiB**. Options
+are read from firmware, so another BIOS may offer different sizes. Reserving
+more VRAM leaves less ordinary system RAM. This controls the firmware UMA
+reservation, not the shared GTT limit. The menu distinguishes active VRAM from
+the requested size awaiting reboot; it never restarts the computer itself.
+
+**Confirmed working on OneXPlayer Super X, BIOS V1.01, Fedora kernel
+7.2.4-100.fc43.x86_64 and GNOME 49.** A change from 16 GiB to 512 MiB was
+confirmed by the user and verified after reboot through amdgpu
+(`mem_info_vram_total = 536870912`). Other advertised sizes have not all been
+individually tested.
+
+Requires Python 3, polkit, and an amdgpu driver/firmware combination exposing
+`/sys/class/drm/card*/device/uma/carveout_options` and `uma/carveout`. No extra
+DKMS module is needed for this feature. If that interface is absent, the menu
+reports UMA control as unavailable. The installer permits active local
+`wheel` users to apply changes through polkit without another password prompt.
+
+For CLI use, inspect the options first, then pass the selected **index**:
+
+```shell
+/usr/local/bin/oxp-vram status
+pkexec /usr/local/bin/oxp-vram set INDEX
+```
+
+Indices are firmware-specific; do not use a size in GiB as the index.
+Uninstalling the utility does not reset the firmware allocation.
+See [UMA implementation and validation notes](contrib/uma/README.md).
 
 ## Turbo Button Configuration
 

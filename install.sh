@@ -13,6 +13,7 @@ sudo install -Dm755 "$REPO_DIR/oxp-fan-profile.py" /usr/local/bin/oxp-fan-profil
 sudo install -Dm755 "$REPO_DIR/oxp-rgb-hid.py" /usr/local/bin/oxp-rgb-hid
 sudo install -Dm755 "$REPO_DIR/oxp-rgb" /usr/local/bin/oxp-rgb
 sudo install -Dm755 "$REPO_DIR/oxp-tdp" /usr/local/bin/oxp-tdp
+sudo install -Dm755 "$REPO_DIR/oxp-vram.py" /usr/local/bin/oxp-vram
 sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-turbo-tdp.py" /usr/local/bin/oxp-turbo-tdp
 sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-cpu-profile" /usr/local/bin/oxp-cpu-profile
 sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-idle-power.sh" /usr/local/sbin/oxp-idle-power

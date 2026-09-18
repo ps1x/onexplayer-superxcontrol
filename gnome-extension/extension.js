@@ -7,6 +7,8 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as Dialog from 'resource:///org/gnome/shell/ui/dialog.js';
+import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const PROFILE_HELPER = '/usr/local/bin/oxp-fan-profile';
@@ -14,6 +16,7 @@ const CPU_PROFILE_HELPER = '/usr/local/bin/oxp-cpu-profile';
 const RGB_HELPER = '/usr/local/bin/oxp-rgb';
 const RGB_HID_HELPER = '/usr/local/bin/oxp-rgb-hid';
 const TDP_HELPER = '/usr/local/bin/oxp-tdp';
+const VRAM_HELPER = '/usr/local/bin/oxp-vram';
 const BATTERY_HELPER = '/usr/local/bin/oxp-battery-probe';
 const BATTERY_EC_HELPER = '/usr/local/bin/oxp-battery-ec-probe';
 const CONFIG_PATH = GLib.build_filenamev([GLib.get_user_config_dir(), 'oxp-control.json']);
@@ -168,6 +171,7 @@ class OXPFanProfilesButton extends PanelMenu.Button {
         this.menu.connect('open-state-changed', (_menu, open) => {
             if (open) {
                 this._refreshBatteryInfo(true);
+                this._refreshVram();
             }
         });
 
@@ -204,6 +208,12 @@ class OXPFanProfilesButton extends PanelMenu.Button {
 
         this._tdpMenu = new PopupMenu.PopupSubMenuMenuItem('TDP');
         this.menu.addMenuItem(this._tdpMenu);
+
+        this._vramMenu = new PopupMenu.PopupSubMenuMenuItem('GPU Memory (UMA)');
+        this.menu.addMenuItem(this._vramMenu);
+        this._vramBusy = false;
+        this._vramDestroyed = false;
+        this._vramDialog = null;
 
         this._batteryMenu = new PopupMenu.PopupSubMenuMenuItem('Battery');
         this.menu.addMenuItem(this._batteryMenu);
@@ -274,6 +284,7 @@ class OXPFanProfilesButton extends PanelMenu.Button {
         this._buildTdpMenu();
         this._buildBatteryMenus();
         this._buildRgbMenu();
+        this._refreshVram();
         this._connectNotificationSignals();
         this._connectPowerSignals();
         this._refresh();
@@ -490,6 +501,102 @@ class OXPFanProfilesButton extends PanelMenu.Button {
         this._batteryLimitItem.label.text = `Charge Limit: ${chargeLimit ?? 'n/a'}%`;
         this._batteryModeItem.label.text = `Power Mode: ${powerMode ?? 'n/a'}`;
         this._buildBatteryMenus();
+    }
+
+    _vramCommand(argv, callback) {
+        if (this._vramBusy || this._vramDestroyed)
+            return;
+        this._vramBusy = true;
+        this._vramMenu.setSensitive(false);
+        const finish = (data, error) => {
+            this._vramBusy = false;
+            if (this._vramDestroyed)
+                return;
+            this._vramMenu.setSensitive(true);
+            callback(data, error);
+        };
+        try {
+            const proc = Gio.Subprocess.new(argv,
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+            proc.communicate_utf8_async(null, null, (source, result) => {
+                try {
+                    const [, stdout, stderr] = source.communicate_utf8_finish(result);
+                    const data = stdout?.trim() ? JSON.parse(stdout) : null;
+                    if (!source.get_successful())
+                        throw new Error(data?.error || stderr?.trim() || 'UMA command failed');
+                    if (!data?.supported || !Array.isArray(data.options))
+                        throw new Error(data?.error || 'UMA control unavailable');
+                    finish(data, null);
+                } catch (error) {
+                    finish(null, String(error));
+                }
+            });
+        } catch (error) {
+            finish(null, String(error));
+        }
+    }
+
+    _refreshVram() {
+        this._vramCommand([VRAM_HELPER, 'status'], (data, error) => {
+            this._buildVramMenu(data, error);
+        });
+    }
+
+    _buildVramMenu(data, error = null) {
+        this._vramMenu.menu.removeAll();
+        const info = text => this._vramMenu.menu.addMenuItem(
+            new PopupMenu.PopupMenuItem(text, {reactive: false}));
+        if (error) {
+            info('UMA control unavailable');
+            info(error);
+            return;
+        }
+        const activeGiB = data.active_bytes / (1024 ** 3);
+        info(`Active VRAM: ${activeGiB.toLocaleString()} GiB`);
+        if (data.reboot_required)
+            info(`Requested: ${data.requested.label} — reboot required`);
+        info('Reserves system RAM for GPU after reboot');
+        this._vramMenu.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        for (const option of data.options) {
+            const item = new PopupMenu.PopupMenuItem(option.label);
+            if (option.bytes === data.active_bytes)
+                item.setOrnament(PopupMenu.Ornament.DOT);
+            item.connect('activate', () => this._confirmVram(option));
+            this._vramMenu.menu.addMenuItem(item);
+        }
+    }
+
+    _confirmVram(option) {
+        if (this._vramBusy || this._vramDialog)
+            return;
+        const dialog = new ModalDialog.ModalDialog();
+        this._vramDialog = dialog;
+        dialog.contentLayout.add_child(new Dialog.MessageDialogContent({
+            title: `Allocate ${option.label} to GPU?`,
+            description: 'This memory will be reserved from system RAM. '
+                + 'The change takes effect after your next reboot. This will not restart the computer.',
+        }));
+        dialog.connect('destroy', () => {
+            this._vramDialog = null;
+        });
+        dialog.setButtons([
+            {label: 'Cancel', key: Clutter.KEY_Escape, action: () => dialog.close()},
+            {label: 'Apply', action: () => {
+                dialog.close();
+                this._vramCommand(['pkexec', VRAM_HELPER, 'set', String(option.index)],
+                    (data, error) => {
+                        if (error) {
+                            Main.notifyError('GPU memory change failed', error);
+                            this._refreshVram();
+                            return;
+                        }
+                        this._buildVramMenu(data);
+                        Main.notify('GPU memory request saved',
+                            `${option.label}. Reboot to apply; active VRAM is shown in the menu.`);
+                    });
+            }},
+        ]);
+        dialog.open();
     }
 
     _spawn(argv, message) {
@@ -965,6 +1072,8 @@ class OXPFanProfilesButton extends PanelMenu.Button {
     }
 
     destroy() {
+        this._vramDestroyed = true;
+        this._vramDialog?.destroy();
         if (this._notificationFlashTimeoutId) {
             GLib.Source.remove(this._notificationFlashTimeoutId);
             this._notificationFlashTimeoutId = null;

@@ -30,6 +30,7 @@ for path in \
     /usr/local/bin/oxp-rgb-hid \
     /usr/local/bin/oxp-rgb \
     /usr/local/bin/oxp-tdp \
+    /usr/local/bin/oxp-vram \
     /usr/local/bin/oxp-turbo-tdp \
     /usr/local/bin/oxp-cpu-profile \
     /usr/local/sbin/oxp-idle-power \
