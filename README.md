@@ -173,6 +173,57 @@ Indices are firmware-specific; do not use a size in GiB as the index.
 Uninstalling the utility does not reset the firmware allocation.
 See [UMA implementation and validation notes](contrib/uma/README.md).
 
+### Shared GPU memory (GTT)
+
+GTT lets the GPU allocate ordinary system RAM beyond the firmware UMA
+reservation. It is already enabled by default; increase its limit if a GPU
+workload needs more shared memory. On current kernels, use the kernel parameter
+`ttm.pages_limit`, measured in **pages**, not bytes or MiB:
+
+```text
+pages_limit = desired_GiB * 1024 * 1024 * 1024 / page_size
+```
+
+Check the page size with `getconf PAGESIZE`. With 4096-byte pages, a **40 GiB**
+limit is `ttm.pages_limit=10485760`. Choose a limit that leaves RAM for the OS
+and applications after subtracting the UMA reservation. This is an allocation
+limit, not a reservation or a guarantee that every application can use it all.
+
+On Fedora, apply this example to the default boot entry, then reboot:
+
+```shell
+sudo grubby --update-kernel=DEFAULT --remove-args="amdgpu.gttsize ttm.pages_limit" --args="ttm.pages_limit=10485760"
+sudo reboot
+```
+
+For other bootloaders, add `ttm.pages_limit=10485760` to the kernel command
+line using the distribution's bootloader configuration procedure.
+Older kernels may additionally require `amdgpu.gttsize=40960` (MiB) for the
+same 40 GiB limit. Current amdgpu derives GTT size from `ttm.pages_limit`;
+`amdgpu.gttsize` is deprecated and an existing override can mask the new limit.
+See the upstream [amdgpu GTT initialization](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c)
+and [TTM parameters](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/ttm/ttm_tt.c).
+
+Verify after reboot (memory totals are in bytes):
+
+```shell
+cat /proc/cmdline
+cat /sys/module/ttm/parameters/pages_limit
+grep -H . /sys/class/drm/card*/device/mem_info_{vram,gtt}_total
+```
+
+On the tested Super X with kernel `7.2.4-100.fc43.x86_64`,
+`ttm.pages_limit=10485760` alone reports `mem_info_gtt_total = 42949672960`
+(40 GiB). This verifies the advertised limit, not a full-size allocation test.
+
+To restore automatic limits for the default boot entry, remove the overrides
+and reboot:
+
+```shell
+sudo grubby --update-kernel=DEFAULT --remove-args="ttm.pages_limit amdgpu.gttsize"
+sudo reboot
+```
+
 ## Turbo Button Configuration
 
 The system service reads `/etc/oxp-turbo-button.conf`. The installer creates
