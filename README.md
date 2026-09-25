@@ -47,6 +47,7 @@ under `local/` and are excluded from Git.
 - GNOME Shell top-bar plugin for daily use
 - RGB preset and color control helpers
 - TDP presets through `ryzenadj`
+- switchable CPU temperature limit through `ryzenadj`
 - GPU memory (UMA) allocation with firmware-provided sizes and reboot confirmation
 - configurable Turbo-button commands or two-state power/TDP/LED switching
 - Adaptive and Ultra Saver CPU power modes
@@ -127,6 +128,7 @@ Install the client tools, fan-control service, and GNOME extension:
 ```
 
 The TDP helpers require `ryzenadj` to be installed and available in `PATH`.
+The CPU temperature-limit helper expects it at `/usr/local/bin/ryzenadj`.
 Under Secure Boot, kernel lockdown blocks `ryzenadj`'s direct hardware access,
 so the `ryzen_smu` DKMS module must also be built, signed, and loaded
 (`ryzen_smu` 0.1.7 currently needs `#include <asm/cpuid/api.h>` added to
@@ -355,6 +357,7 @@ The GNOME Shell extension adds a top-bar menu for:
 - CPU power modes
 - RGB presets and custom color
 - TDP presets
+- CPU temperature limit (75, 80, 85, 90, 95 °C or Default)
 - battery charge-limit / bypass controls when the backend is available
 - a settings window for configurable Turbo-button behavior
 
@@ -364,9 +367,31 @@ Enable it after install:
 gnome-extensions enable oxp-fan-profiles@ps1x
 ```
 
-Menu actions that need root (fan profiles, CPU power modes, TDP presets, and
-Turbo-button configuration) run through `pkexec`; the bundled polkit rule
-makes them passwordless for local active `wheel` users.
+Menu actions that need root (fan profiles, CPU power modes, TDP presets, CPU
+temperature limit, and Turbo-button configuration) run through `pkexec`; the
+bundled polkit rule makes them passwordless for local active `wheel` users.
+
+### CPU Temperature Limit
+
+Open **OXP Control → CPU Temperature** to select a CPU thermal limit from 75 to
+95 °C in 5 °C steps. The helper sets Ryzen's Tctl limit through `ryzenadj` and
+checks the value reported by the firmware. The selected limit is saved in
+`/var/lib/oxp-temp-limit.json` and restored at boot by
+`oxp-temp-limit.service`.
+
+**Default** restores the Tctl limit that was active before the first selection
+after the previous reset, then clears the saved setting.
+If no limit is saved, **Default** leaves the current limit as it is. This
+setting controls the CPU thermal limit; it does not change the fan profile or
+TDP preset.
+
+The same controls are available from the command line:
+
+```shell
+/usr/local/bin/oxp-temp-limit status
+sudo /usr/local/bin/oxp-temp-limit set 85
+sudo /usr/local/bin/oxp-temp-limit off
+```
 
 ## RGB And TDP Commands
 

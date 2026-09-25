@@ -17,6 +17,10 @@ fi
 
 echo "Stopping OXP fan service..."
 sudo systemctl disable --now oxp-fan-control.service 2>/dev/null || true
+if [[ -x /usr/local/bin/oxp-temp-limit ]]; then
+    sudo /usr/local/bin/oxp-temp-limit off 2>/dev/null || true
+fi
+sudo systemctl disable --now oxp-temp-limit.service 2>/dev/null || true
 sudo systemctl disable --now oxp-turbo-tdp.service 2>/dev/null || true
 sudo systemctl disable --now oxp-idle-power.service 2>/dev/null || true
 if [[ -x /usr/local/bin/oxp-cpu-profile ]]; then
@@ -30,6 +34,7 @@ for path in \
     /usr/local/bin/oxp-rgb-hid \
     /usr/local/bin/oxp-rgb \
     /usr/local/bin/oxp-tdp \
+    /usr/local/bin/oxp-temp-limit \
     /usr/local/bin/oxp-vram \
     /usr/local/bin/oxp-turbo-tdp \
     /usr/local/bin/oxp-cpu-profile \
@@ -44,6 +49,7 @@ done
 echo "Removing service and rules..."
 for path in \
     /etc/systemd/system/oxp-fan-control.service \
+    /etc/systemd/system/oxp-temp-limit.service \
     /etc/systemd/system/oxp-turbo-tdp.service \
     /etc/systemd/system/oxp-idle-power.service \
     /usr/lib/systemd/system-sleep/oxp-idle-power \
@@ -69,6 +75,7 @@ if [[ $PURGE -eq 1 ]]; then
     sudo rm -f "$TARGET_HOME/.config/oxp-control.json"
     sudo rm -f /var/lib/oxp-power-mode
     sudo rm -f /var/lib/oxp-turbo-button-state
+    sudo rm -f /var/lib/oxp-temp-limit.json
 fi
 
 sudo systemctl daemon-reload

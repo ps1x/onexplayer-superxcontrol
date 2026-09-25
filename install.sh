@@ -13,6 +13,7 @@ sudo install -Dm755 "$REPO_DIR/oxp-fan-profile.py" /usr/local/bin/oxp-fan-profil
 sudo install -Dm755 "$REPO_DIR/oxp-rgb-hid.py" /usr/local/bin/oxp-rgb-hid
 sudo install -Dm755 "$REPO_DIR/oxp-rgb" /usr/local/bin/oxp-rgb
 sudo install -Dm755 "$REPO_DIR/oxp-tdp" /usr/local/bin/oxp-tdp
+sudo install -Dm755 "$REPO_DIR/oxp-temp-limit.py" /usr/local/bin/oxp-temp-limit
 sudo install -Dm755 "$REPO_DIR/oxp-vram.py" /usr/local/bin/oxp-vram
 sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-turbo-tdp.py" /usr/local/bin/oxp-turbo-tdp
 sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-cpu-profile" /usr/local/bin/oxp-cpu-profile
@@ -23,6 +24,7 @@ gcc -O2 -Wall -Wextra -o /tmp/oxp-battery-ec-probe "$REPO_DIR/oxp-battery-ec-pro
 sudo install -Dm755 /tmp/oxp-battery-ec-probe /usr/local/bin/oxp-battery-ec-probe
 sudo chmod 4755 /usr/local/bin/oxp-battery-ec-probe
 sudo install -Dm644 "$REPO_DIR/oxp-fan-control.service" /etc/systemd/system/oxp-fan-control.service
+sudo install -Dm644 "$REPO_DIR/oxp-temp-limit.service" /etc/systemd/system/oxp-temp-limit.service
 sudo install -Dm644 "$REPO_DIR/contrib/power/oxp-turbo-tdp.service" /etc/systemd/system/oxp-turbo-tdp.service
 sudo install -Dm644 "$REPO_DIR/contrib/power/oxp-idle-power.service" /etc/systemd/system/oxp-idle-power.service
 sudo install -Dm755 "$REPO_DIR/contrib/power/oxp-idle-power-resume" /usr/lib/systemd/system-sleep/oxp-idle-power
@@ -74,6 +76,7 @@ sudo udevadm trigger --subsystem-match=iio --action=change || true
 sudo udevadm trigger --attr-match=idVendor=1a2c --attr-match=idProduct=b001 || true
 sudo systemctl try-restart iio-sensor-proxy.service
 sudo systemctl enable --now oxp-fan-control.service
+sudo systemctl enable --now oxp-temp-limit.service
 sudo systemctl enable --now oxp-turbo-tdp.service
 sudo systemctl enable --now oxp-idle-power.service
 

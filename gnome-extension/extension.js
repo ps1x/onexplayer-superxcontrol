@@ -16,6 +16,7 @@ const CPU_PROFILE_HELPER = '/usr/local/bin/oxp-cpu-profile';
 const RGB_HELPER = '/usr/local/bin/oxp-rgb';
 const RGB_HID_HELPER = '/usr/local/bin/oxp-rgb-hid';
 const TDP_HELPER = '/usr/local/bin/oxp-tdp';
+const TEMP_LIMIT_HELPER = '/usr/local/bin/oxp-temp-limit';
 const VRAM_HELPER = '/usr/local/bin/oxp-vram';
 const BATTERY_HELPER = '/usr/local/bin/oxp-battery-probe';
 const BATTERY_EC_HELPER = '/usr/local/bin/oxp-battery-ec-probe';
@@ -208,6 +209,9 @@ class OXPFanProfilesButton extends PanelMenu.Button {
 
         this._tdpMenu = new PopupMenu.PopupSubMenuMenuItem('TDP');
         this.menu.addMenuItem(this._tdpMenu);
+
+        this._tempLimitMenu = new PopupMenu.PopupSubMenuMenuItem('CPU Temperature');
+        this.menu.addMenuItem(this._tempLimitMenu);
 
         this._vramMenu = new PopupMenu.PopupSubMenuMenuItem('GPU Memory (UMA)');
         this.menu.addMenuItem(this._vramMenu);
@@ -734,6 +738,63 @@ class OXPFanProfilesButton extends PanelMenu.Button {
         this._updateInfoRows();
     }
 
+    _setTempLimit(limit) {
+        const command = limit === null ? ['off'] : ['set', String(limit)];
+        try {
+            const proc = Gio.Subprocess.new(
+                ['pkexec', TEMP_LIMIT_HELPER, ...command],
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+            );
+            this._statusItem.text = 'Setting CPU temperature limit…';
+            proc.communicate_utf8_async(null, null, (process, result) => {
+                try {
+                    const [, , stderr] = process.communicate_utf8_finish(result);
+                    if (!process.get_successful()) {
+                        throw new Error(stderr.trim() || 'temperature helper failed');
+                    }
+                    this._refresh();
+                } catch (error) {
+                    log(`OXP temperature limit error: ${error}`);
+                    this._statusItem.text = `Temperature limit failed: ${error}`;
+                }
+            });
+        } catch (error) {
+            log(`OXP temperature limit error: ${error}`);
+            this._statusItem.text = `Temperature limit failed: ${error}`;
+        }
+    }
+
+    _buildTempLimitMenu() {
+        const result = this._runChecked([TEMP_LIMIT_HELPER, 'status']);
+        let limit = null;
+        if (result.ok) {
+            try {
+                limit = JSON.parse(result.stdout).limit;
+            } catch (error) {
+                log(`OXP temperature status error: ${error}`);
+            }
+        }
+        this._tempLimitMenu.label.text = limit !== null
+            ? `CPU Temperature: ${limit} °C`
+            : 'CPU Temperature';
+        this._tempLimitMenu.menu.removeAll();
+        for (const [value, label] of [
+            [null, 'Default'],
+            [75, '75 °C'],
+            [80, '80 °C'],
+            [85, '85 °C'],
+            [90, '90 °C'],
+            [95, '95 °C'],
+        ]) {
+            const item = new PopupMenu.PopupMenuItem(label);
+            if (value === limit) {
+                item.setOrnament(PopupMenu.Ornament.DOT);
+            }
+            item.connect('activate', () => this._setTempLimit(value));
+            this._tempLimitMenu.menu.addMenuItem(item);
+        }
+    }
+
     _enforceBatteryTdpSafety() {
         const power = this._readPowerSourceInfo();
         const onBattery = power.onBattery;
@@ -1050,6 +1111,7 @@ class OXPFanProfilesButton extends PanelMenu.Button {
         this._profilesMenu.menu.removeAll();
         this._buildCpuProfilesMenu();
         this._buildTdpMenu();
+        this._buildTempLimitMenu();
         this._refreshBatteryInfo(false);
 
         if (!status || !status.profiles || status.profiles.length === 0) {

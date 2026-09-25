@@ -1,0 +1,10 @@
+[Unit]
+Description=Restore OXP CPU temperature limit
+After=systemd-modules-load.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/oxp-temp-limit apply
+
+[Install]
+WantedBy=multi-user.target
